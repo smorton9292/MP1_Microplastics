@@ -1,3 +1,7 @@
+#This R script will import the exports from my QIIME2 pipeline script so that they can be combined into a single Phyloseq object for further processing, object extraction, and statistical analysis. 
+#Lines beginning with (#) were not in the final script
+
+#Clear work space if need
 rm(list = ls())
 
 #check R version
@@ -5,7 +9,9 @@ R.version.string
 #install packages
 #install.packages("BiocManager")
 BiocManager::install("microbiome")
+install.packages("vegetarian")
 #install.packages("/Users/lab/vegetarian", repos = NULL, type = "source")
+BiocManager::install("phyloseq")
 #BiocManager::install("phyloseq", force = TRUE)
 install.packages("gdata")
 install.packages("ecodist")
@@ -15,34 +21,52 @@ install.packages("castor")
 install.packages("doParallel")
 install.packages("viridis")
 install.packages("RColorBrewer")
+BiocManager::install("DESeq2")
+install.packages("indicspecies")
 install.packages("ggrepel")
+install.packages("tibble")
+BiocManager::install("metagMisc")
+install.packages("ggplot2")
+install.packages("vegan")
+install.packages("carData")
+install.packages("car")
+BiocManager::install("biomformat")
+install.packages("dplyr")
+install.packages("maps")
+install.packages("Rcpp")
+install.packages("tidyr")
 
-#load packages; most of these are useful in general
-library(phyloseq); packageVersion("phyloseq") #1.48.0; not sure if these are the most updated in comparison to a fresh install, but they will be useful in noting ahead of time for manuscripts.
-library(ggplot2)
+#load packages
+library(phyloseq); packageVersion("phyloseq")
 library(microbiome)
-library(vegetarian) #might be a tricky install. 
-library(ggplot2); packageVersion("ggplot2") #3.5.1
+library(vegetarian)
+library(ggplot2); packageVersion("ggplot2")
 library(gdata)
 library(ecodist)
-library(vegan) #we love her! 
+library(vegan) 
 library(carData)
-library(car) #very likely will be a tricky install if you haven't experienced this already.  
+library(car)   
 library(dplyr)
 library(biomformat)
-library(ape) #phylogenetic tools packages
+library(ape) 
 library(maps)
-library(phytools) #phylogenetic tools packages
+library(phytools) 
 library(Rcpp)
 library(castor)
-library(doParallel) #used for UniFrac but meh not super necessary for small data sets.
+library(doParallel) 
 library(viridis)
 library(RColorBrewer)
 library(ggrepel)
+library(metagMisc)
+library(tidyr)
+library(DESeq2)
+library(indicspecies)
+library(tibble)
 
-#Reproducible
-set.seed(77) #permutational analyses need to be easily reproducible
+#Set seed
+set.seed(77)
 
+#set working directory
 setwd("C:/Users/DELL/Documents/R/projects/MP_16S")
 
 #Read in biom table
@@ -57,27 +81,30 @@ df.ASV[1:10,1:10]
 rownames(df.ASV) #nothing has changed
 colnames(df.ASV) #nothing has changed
 
+#Read in metadata file
 metadata<-read.csv("16S_BioP_metadata.csv",header=TRUE)
 dim(metadata) #150 samps x 11 columns 
 
+#Read in tax table
 taxa2<-read.csv("16S_taxonomy_Final.csv")
 ph.headers<-c("ID", "Kingdom","Phylum","Class","Order","Family","Genus","species")
 colnames(taxa2)<-ph.headers
-rownames(taxa2) #just numbers, boo & hiss
+rownames(taxa2) #just numbers
 rownames(taxa2)<-taxa2[,1]
 rownames(taxa2) #much better
 dim(taxa2) #7317 x 8
 taxa3<-taxa2[,2:8]
-colnames(taxa3) #Gucci
+colnames(taxa3)
 
-dated.16Stree<-read.tree(file="BioP-rooted-tree-FINAL.nwk") #reading in tree, uses ape package
+#Read in tree
+dated.16Stree<-read.tree(file="BioP-rooted-tree-FINAL.nwk")
 is.rooted(dated.16Stree) #TRUE
 sample_names(dated.16Stree) #NULL
 dated.16Stree$tip.label #for example "bf08d62b32cced86e829cba893bdf318" 
 
 #Creating phyloseq object
-str(taxa3) #data.frame 291 x 7
-taxa3.m<-as.matrix(taxa3) #VERY NECESSARY TO DO, DON'T SKIP. 
+str(taxa3) #data.frame
+taxa3.m<-as.matrix(taxa3) #check matrix 
 str(taxa3.m)
 colnames(taxa3.m)
 str(df.ASV) #data.frame 150 obs. of 7217 vars
@@ -85,10 +112,10 @@ str(metadata) #data.frame 150 obs. of 11 vars
 colnames(metadata)
 
 rownames(df.ASV)<-as.character(rownames(df.ASV))
-as.character(rownames(df.ASV))==as.character(metadata[,1]) # Now TRUE whoohoo #second problem; these need to match; make sure to sort your sample_name column in excel from low to high, resave, and load in.
+as.character(rownames(df.ASV))==as.character(metadata[,1]) # Now TRUE, these need to match; sort your sample_name column in excel from low to high.
 colnames(df.ASV) #accession numbers
 rownames(metadata)<-as.character(metadata[,1])
-rownames(taxa3.m)<-as.character(rownames(taxa3.m)) #these the accession numbers
+rownames(taxa3.m)<-as.character(rownames(taxa3.m)) #accession numbers
 samp.names<-as.character(metadata[,1])
 
 #To set up sample names to match (originally marked NULL)
@@ -98,48 +125,48 @@ sample_names(taxa3.m)<-samp.names
 sample_names(dated.16Stree)<-samp.names
 
 ############################
-# Check if rownames of df.ASV match sample names
+
+#Check if rownames of df.ASV match sample names
 identical(rownames(df.ASV), samp.names)  # Should be TRUE
-# Check if rownames of metadata match sample names
+#Check if rownames of metadata match sample names
 identical(rownames(metadata), samp.names)  # Should be TRUE
-# Check if column names of df.ASV match the ASV IDs in taxa3
-identical(colnames(df.ASV), rownames(taxa3.m))  # Should be TRUE
+#Check if column names of df.ASV match the ASV IDs in taxa3
+identical(colnames(df.ASV), rownames(taxa3.m))  #Should be TRUE
 
-# Now fix the taxonomy matrix to match the OTU table
-taxa3.m <- taxa3.m[colnames(df.ASV), ]  # 🔧 Align rows with OTU columns
+#Fix the taxonomy matrix to match the OTU table
+taxa3.m <- taxa3.m[colnames(df.ASV), ]  #Align rows with OTU columns
 #Reconfirm
-identical(colnames(df.ASV), rownames(taxa3.m))  # Should return TRUE
+identical(colnames(df.ASV), rownames(taxa3.m))  #Should return TRUE
 
-# Check if tree tip labels match ASV IDs
-identical(sort(dated.16Stree$tip.label), sort(colnames(df.ASV)))  # Should be TRUE
+#Check if tree labels match ASV IDs
+identical(sort(dated.16Stree$tip.label), sort(colnames(df.ASV)))  #Should be TRUE
 
 #Here is the actual phyloseq object
 BioP.phylo<-phyloseq(otu_table(df.ASV, taxa_are_rows=FALSE), sample_data(metadata), tax_table(taxa3.m), phy_tree(dated.16Stree))
 
-# If using a phyloseq object already:
-identical(sample_names(BioP.phylo), samp.names)  # Should be TRUE
-#################NEW##############
+#Confirm
+identical(sample_names(BioP.phylo), samp.names)  #Should be TRUE
 
-#Replace "taxa names" to short hand so that they are easier to view in R.
+###############################
+
+#Replace 'taxa names' to short hand so that they are easier to view in R
 BioP.phylo@otu_table[1:10,1:10]
 dim(BioP.phylo@otu_table) #150 x 7317
-rowSums(BioP.phylo@otu_table) #eye opening
-colSums(BioP.phylo@otu_table) #less eye opening
+rowSums(BioP.phylo@otu_table) 
+colSums(BioP.phylo@otu_table) 
 
-#Examining taxonomic ranks to examine where chloroplasts and mitochondria are nested within
-#Need to examine Unassigned / Unknown taxa and do blasts to see if they TRULY are unknown or are chloroplasts/host DNA in disguise. The taxonomic resolution you wish to do this at is dependent on maybe an in person conversation. One needs the .qzv sequences file from that ASV table generation in QIIME2 to acquire the sequence to blast. I think looking at the higher orders is more important as resolution at lower levels isn't as good and is well... full of unknown taxa. This I have not done as it requires extra thought and researchers vary on best practices here. 
-
+#Check taxa data and filter
 colnames(BioP.phylo@tax_table) #"Kingdom", "Phylum", "Class", "Family", "Genus", "species"  
-table(tax_table(BioP.phylo)[, "Kingdom"], exclude = NULL) #9 archaea, 6923 bacteria, 4 euks, 51 unassigned #Removing everything but bacteria or archaea
-table(tax_table(BioP.phylo)[, "Phylum"], exclude = NULL) #Examine 
-table(tax_table(BioP.phylo)[, "Class"], exclude = NULL) #Examine 
-table(tax_table(BioP.phylo)[, "Order"], exclude = NULL) #Reads assigned as chloroplast at this taxonomic rank
-table(tax_table(BioP.phylo)[, "Family"], exclude = NULL) #Reads assigned as mitochondria at this taxonomic rank
-table(tax_table(BioP.phylo)[, "Genus"], exclude = NULL) #Examine
-table(tax_table(BioP.phylo)[, "species"], exclude = NULL) 
+table(tax_table(BioP.phylo)[, "Kingdom"], exclude = NULL) 
+table(tax_table(BioP.phylo)[, "Phylum"], exclude = NULL) 
+table(tax_table(BioP.phylo)[, "Class"], exclude = NULL) 
+table(tax_table(BioP.phylo)[, "Order"], exclude = NULL) #Reads assigned as chloroplast
+table(tax_table(BioP.phylo)[, "Family"], exclude = NULL) #Reads assigned as mitochondria
+table(tax_table(BioP.phylo)[, "Genus"], exclude = NULL)
+table(tax_table(BioP.phylo)[, "species"], exclude = NULL)
 
 #Filter all to Phylum - Keep Archaea
-#First trim up leading or trailing spaces - Some found good to run for safety in future
+#Trim up leading or trailing spaces - Some found good, to run for safety
 tax_table(BioP.phylo) <- apply(tax_table(BioP.phylo), 2, trimws)
 #Keep sequences with assigned Kingdoms (removes Unassigned)
 p1 <- subset_taxa(BioP.phylo, !Kingdom %in% "Unassigned")
@@ -152,20 +179,21 @@ table(tax_table(p3)[, "Order"], exclude = NULL) #Check
 #Remove mitochondrial contaminants
 p4 <- subset_taxa(p3, !Family %in% "Mitochondria")
 table(tax_table(p4)[, "Family"], exclude = NULL) #Check
-#Remove poorly classified taxa at the Phylum level only
+#Remove poorly classified taxa at the Phylum level
 p5 <- subset_taxa(p4, !is.na(Phylum) &
                     !Phylum %in% c("Unassigned", "unknown", "Unknown", "uncultured", "NA"))
 table(tax_table(p5)[, "Phylum"], exclude = NULL) #Check
 
+###########################
 #Check to make sure the chloroplasts were over abundant and a real containment
 table(tax_table(p2)[, "Order"])
 chloroplast_taxa <- taxa_names(subset_taxa(p2, Order == "Chloroplast"))
-length(chloroplast_taxa)  # Should tell you how many ASVs match
+length(chloroplast_taxa)  #How many ASVs match
 #Check if taxa are rows
 taxa_are_rows(p2)
-#Convert OTU table to matrix and transpose if needed
+#Convert OTU table to matrix and transpose if required
 otu_mat <- as(otu_table(p2), "matrix")
-otu_mat <- t(otu_mat)  # Transpose to make taxa the rows
+otu_mat <- t(otu_mat)  #Transpose to make taxa the rows
 #Subset and sum chloroplast reads per sample
 chloroplast_counts <- colSums(otu_mat[chloroplast_taxa, , drop = FALSE])
 #Total reads per sample
@@ -182,40 +210,42 @@ rowSums(p5@otu_table)
 
 #Assign cleaned object
 BioPlastics_phylo <- p5
-dim(BioPlastics_phylo@otu_table)  # 150 x 6,114
+dim(BioPlastics_phylo@otu_table)  #150 x 6,114
 
-# Get OTU table and convert to data frame for rarefaction
-BioPlasticsASVtable <- BioPlastics_phylo@otu_table #  Use this to rarefy on line 162 and then follow to build a Quant. Jaccard Distance for modeling with dbrda (unless Jon wants to model other ways)...
-BioPlasticsASVtable1 <- BioPlasticsASVtable  # consistent naming
+#Get OTU table and convert to data frame for rarefaction step
+BioPlasticsASVtable <- BioPlastics_phylo@otu_table
+BioPlasticsASVtable1 <- BioPlasticsASVtable  #Naming
 dim(BioPlasticsASVtable1) #150
 colSums(BioPlasticsASVtable1)
-min(colSums(BioPlasticsASVtable1)) # should be at least 1
+min(colSums(BioPlasticsASVtable1)) #Need at least 1
 BioP_ASV_table.df <- as.data.frame(BioPlasticsASVtable1)
 
-#Find the minimum read depth, notice now its not zero because I removed the samples with low depth that will be reqeuenced. In the final data set you wont remove samples and will use whatever the lowest read depth is on the line below. 30,023.
+#Find the minimum read depth
 min(rowSums(BioPlasticsASVtable1)) #41,255
 sort(rowSums(BioPlasticsASVtable1),decreasing=FALSE)
 
+##############################
+### Multi-rarefaction Step ###
+##############################
 
-###Multi-rarefaction instead
 # Install and load metagMisc if needed
-if (!requireNamespace("metagMisc", quietly = TRUE)) {
-  devtools::install_github("vmikk/metagMisc")
-}
-library(metagMisc)
+#if (!requireNamespace("metagMisc", quietly = TRUE)) {
+  #devtools::install_github("vmikk/metagMisc")
+#}
+#library(metagMisc)
 
 # Find rarefaction depth
-min_depth <- min(sample_sums(BioPlastics_phylo))  # e.g. 41255
-print(min_depth)
-taxa_are_rows(BioPlastics_phylo)
-if (!taxa_are_rows(BioPlastics_phylo)) {
+min_depth <- min(sample_sums(BioPlastics_phylo))  
+print(min_depth) #41255
+taxa_are_rows(BioPlastics_phylo) #Check if taxa are rows
+if (!taxa_are_rows(BioPlastics_phylo)) { #Check
   otu_table(BioPlastics_phylo) <- t(otu_table(BioPlastics_phylo))
   taxa_are_rows(BioPlastics_phylo) <- TRUE
 }
 #Reconfirm
 taxa_are_rows(BioPlastics_phylo)
 
-#Perform multiple rarefactions and average
+#Run multiple rarefaction and average
 set.seed(91)
 averaged_phylo <- phyloseq_mult_raref_avg(
   BioPlastics_phylo,
@@ -224,54 +254,56 @@ averaged_phylo <- phyloseq_mult_raref_avg(
   parallel = TRUE
 )
 
-#Create rarefied ASV-level phyloseq object (for UniFrac)
+#Create rarefied ASV-level phyloseq object
 UniFrac_Phylo_Object <- phyloseq(otu_table(averaged_phylo, taxa_are_rows=FALSE),
                                  phy_tree(BioPlastics_phylo@phy_tree),
                                  tax_table(BioPlastics_phylo@tax_table),
                                  sample_data(BioPlastics_phylo@sam_data))
 
-# Fix tree if needed
+#Fix tree if needed
 if (!ape::is.binary(phy_tree(UniFrac_Phylo_Object))) {
   phy_tree(UniFrac_Phylo_Object) <- ape::multi2di(phy_tree(UniFrac_Phylo_Object))
 }
 
-# Aggregate from rarefied ASV object
+#Aggregate from rarefied ASV object - for multilevel downstream analysis
 BioPlastics_family <- tax_glom(UniFrac_Phylo_Object, taxrank = "Family")
 BioPlastics_phylum <- tax_glom(UniFrac_Phylo_Object, taxrank = "Phylum")
 
-# Weighted UniFrac
+#Weighted UniFrac for ASV level
 registerDoParallel(cores=4)
 set.seed(88)
 wdistUni <- UniFrac(UniFrac_Phylo_Object, weighted=TRUE, parallel=TRUE, fast=TRUE)
 
-# Bray-Curtis from ASV
+#Bray-Curtis from ASV level
 set.seed(71)
 bray_phylo <- transform_sample_counts(UniFrac_Phylo_Object, function(x) x / sum(x))
 bray_dist <- phyloseq::distance(bray_phylo, method = "bray")
 
-# Bray-Curtis from Family
+#Bray-Curtis from Family level
 set.seed(76)
 bray_family_phylo <- transform_sample_counts(BioPlastics_family, function(x) x / sum(x))
 bray_dist_family <- phyloseq::distance(bray_family_phylo, method = "bray")
 
-# Bray-Curtis from Phylum
+#Bray-Curtis from Phylum level
 set.seed(99)
 bray_phylum_phylo <- transform_sample_counts(BioPlastics_phylum, function(x) x / sum(x))
 bray_dist_phylum <- phyloseq::distance(bray_phylum_phylo, method = "bray")
 
-#UniFrac for Family and Phylum
+#Weighted UniFrac for Family and Phylum levels
 set.seed(65)
 wdistUni_family <- UniFrac(BioPlastics_family, weighted=TRUE, parallel=TRUE, fast=TRUE)
 set.seed(66)
 wdistUni_phylum <- UniFrac(BioPlastics_phylum, weighted=TRUE, parallel=TRUE, fast=TRUE)
 
-
+###################################################
 #Visualize the data before running further analysis
+###################################################
+
 #Transforming phyloseq data for ggplot2
 physeq_df <- p5 %>%
-  transform_sample_counts(function(x) x / sum(x)) %>% # Normalizes the counts
+  transform_sample_counts(function(x) x / sum(x)) %>% #Normalizes the counts
   psmelt() %>%
-  filter(!is.na(Phylum)) # Ensures that only rows with defined Phylum are considered
+  filter(!is.na(Phylum)) #Makes it so only rows with defined Phyla are considered - we already filtered so gtg
 
 #Example date order
 custom_order <- c("March_7", "March_23", "April_12", "May_3", "June_9")
@@ -285,7 +317,7 @@ phyplot <- ggplot(physeq_df, aes(fill=Phylum, y=Abundance, x=date)) +
   geom_bar(stat="identity", position="fill") +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(x = "Sample Date", title = "Phylum Abundance Over Time by Plastic Type") +
-  facet_grid(.~plastic_type, space="free", scales="free") #Adjust the facetting based on your metadata
+  facet_grid(.~plastic_type, space="free", scales="free") #Adjust the faceting based on metadata
 
 print(phyplot)
 
@@ -294,14 +326,14 @@ physeq_df2 <- physeq_df %>%
   group_by(date, Phylum, plastic_type, plastic_conc) %>%
   summarise(Abundance = sum(Abundance), .groups = 'drop')
 
-#Creating the stacked bar plot with flipped facet display
+#Create stacked bar plot with flipped facet display
 phyplot2 <- ggplot(physeq_df2, aes(x=date, y=Abundance, fill=Phylum)) +
   geom_bar(stat="identity", position="stack") +
   facet_grid(plastic_type ~ plastic_conc, scales="free_x", space="free") +  #Flipped facet orientation
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(x = "Sample Date", y = "Relative Abundance", title = "Microbial Diversity by Plastic Type and Concentration [g/L] Over Time")
 
-#Print the plot
+#Print plot
 print(phyplot2)
 
 #Aggregating data by phylum, plastic_type, and plastic_conc
@@ -314,7 +346,7 @@ physeq_df3 <- physeq_df2 %>%
     plastic_type == "TPUFC2.1" ~ "TPU FC2.1",
     TRUE ~ plastic_type
   ),
-  #Make plastic concentration is shown with 3 decimal places
+  #Make sure plastic concentration is shown with 3 decimal places
   plastic_conc = sprintf("%.3f", plastic_conc),
   #Replace the dates with corresponding day numbers
   date = case_when(
@@ -323,13 +355,13 @@ physeq_df3 <- physeq_df2 %>%
     date == "April_12" ~ 36,
     date == "May_3" ~ 56,
     date == "June_9" ~ 94,
-    TRUE ~ as.numeric(date)  #In case there are additional dates
+    TRUE ~ as.numeric(date)  #In case there are additional dates - there are not so gtg
   ),
   #Convert date to a factor to avoid spacing issues
-  date = factor(date, levels = c(0, 16, 36, 56, 94))  #Treat date as discrete
+  date = factor(date, levels = c(0, 16, 36, 56, 94))  
   )
 
-#Creating the stacked bar plot with the updated labels and plasma color scheme
+#Creating stacked bar plot with updated labels and plasma color scheme
 phyplot3 <- ggplot(physeq_df3, aes(x = date, y = Abundance, fill = Phylum)) +
   geom_bar(stat = "identity", position = "stack") +
   facet_grid(plastic_type ~ plastic_conc, scales = "free_x", space = "free") +  #Flipped facet orientation
@@ -341,7 +373,7 @@ phyplot3 <- ggplot(physeq_df3, aes(x = date, y = Abundance, fill = Phylum)) +
     axis.title.y = element_text(face = "bold", size = 13),  #Bold y-axis title
     axis.text.x = element_text(size = 9, angle = 90, hjust = 0.5),  #Center-align x-axis tick labels
     axis.text.y = element_text(size = 9),  #Increase size of y-axis tick labels
-    plot.title = element_text(face = "bold", size = 14, hjust = 0.5),  #Bold, center the title
+    plot.title = element_text(face = "bold", size = 14, hjust = 0.5),  #Bold and center the title
     legend.title = element_text(face = "bold", size = 10),  #Bold legend title
     legend.text = element_text(size = 8),  #Customize legend text size
     legend.key.size = unit(0.6, "lines"),  #Adjust spacing between legend items
@@ -349,12 +381,12 @@ phyplot3 <- ggplot(physeq_df3, aes(x = date, y = Abundance, fill = Phylum)) +
     panel.background = element_blank(),  #Remove grey background
     panel.grid.major = element_blank(),  #Remove major gridlines
     panel.grid.minor = element_blank(),  #Remove minor gridlines
-    panel.border = element_rect(colour = "black", fill = NA, linewidth = 1),  # Box around each plot with correct linewidth argument
+    panel.border = element_rect(colour = "black", fill = NA, linewidth = 1),  #Box around each plot with correct linewidth argument
   ) +
   guides(fill = guide_legend(ncol = 1)) +  #Adjust number of columns in legend
   labs(x = "Day Number", y = "Relative Abundance", title = "Microbial diversity")
 
-# Print the plot
+#Print plot
 print(phyplot3)
 
 #Custom color palette with 42 colors
@@ -367,11 +399,11 @@ custom_col42 <- c("#781156","#A51876","#D21E96","#E43FAD","#EA6CC0","#F098D3",
                   "#781122","#A5182F","#D21E2C","#E43F5B","#EA6C81","#F098A7", "black")
 
 #Custom color palette with 27 colors
-custom_col29 <- c("#781156", "#A51876", "#D21E96", "#E43FAD", "#EA6CC0", "#F098D3",  # Deep to light pink/purple hues
-                  "#114578", "#185EA5", "#1E78D2", "#3F91E4", "#6CABEA", "#98C4F0",  # Purples and blues for balance
-                  "#D2D21E", "#E4E43F", "#EAEA6C", "#F0F098",                      # Yellowish-orange to provide contrast
-                  "#A55E18", "#D2781E", "#E4913F", "#EAAB6C", "#F0C498",            # Orange shades from dark to light
-                  "#A5182F", "#D21E2C", "#E43F5B", "#EA6C81", "#F098A7", "black", "darkgreen", "green3")            # Reds to pinks for additional variation
+custom_col29 <- c("#781156", "#A51876", "#D21E96", "#E43FAD", "#EA6CC0", "#F098D3",  
+                  "#114578", "#185EA5", "#1E78D2", "#3F91E4", "#6CABEA", "#98C4F0",  
+                  "#D2D21E", "#E4E43F", "#EAEA6C", "#F0F098",                      
+                  "#A55E18", "#D2781E", "#E4913F", "#EAAB6C", "#F0C498",            
+                  "#A5182F", "#D21E2C", "#E43F5B", "#EA6C81", "#F098A7", "black", "darkgreen", "green3")            
 
 #Custom color palette with 42 colors
 custom_col29_used <- c("#114578","#185EA5","#1E78D2","#3F91E4","#6CABEA","#98C4F0",
@@ -383,7 +415,7 @@ custom_col29_used <- c("#114578","#185EA5","#1E78D2","#3F91E4","#6CABEA","#98C4F
 #Stacked bar plot with custom colors for 27 phyla
 phyplot4 <- ggplot(physeq_df3, aes(x = date, y = Abundance, fill = Phylum)) +
   geom_bar(stat = "identity", position = "stack") +
-  facet_grid(plastic_type ~ plastic_conc, scales = "free_x", space = "free") +  # Flipped facet orientation
+  facet_grid(plastic_type ~ plastic_conc, scales = "free_x", space = "free") +  #Flipped facet orientation
   scale_x_discrete(name = "Day Number") +  #Use discrete scale for date
   scale_fill_manual(values = custom_col29_used) +  #Use custom color palette with 27 colors
   #Update theme to bold titles, remove grids, and add box around each facet
@@ -399,13 +431,13 @@ phyplot4 <- ggplot(physeq_df3, aes(x = date, y = Abundance, fill = Phylum)) +
     panel.background = element_blank(),  #Remove grey background
     panel.grid.major = element_blank(),  #Remove major gridlines
     panel.grid.minor = element_blank(),  #Remove minor gridlines
-    panel.border = element_rect(colour = "black", fill = NA, linewidth = 1)  # Box around each plot with correct linewidth argument
+    panel.border = element_rect(colour = "black", fill = NA, linewidth = 1)  #Box around each plot with correct linewidth argument
   ) +
   guides(fill = guide_legend(ncol = 1)) +  #Adjust number of columns in legend
-  labs(x = "Day Number", y = "Relative Abundance")  # Removed the title
+  labs(x = "Day Number", y = "Relative Abundance")  #Removed the title
 
-#Print the plot
-print(phyplot4)
+#Print plot
+print(phyplot4) #MANUSCRIPT [Supplementary Fig. 5]
 
 #Move legend
 phyplot4 <- ggplot(physeq_df3, aes(x = date, y = Abundance, fill = Phylum)) +
@@ -427,12 +459,12 @@ phyplot4 <- ggplot(physeq_df3, aes(x = date, y = Abundance, fill = Phylum)) +
     panel.background = element_blank(),  #Remove grey background
     panel.grid.major = element_blank(),  #Remove major gridlines
     panel.grid.minor = element_blank(),  #Remove minor gridlines
-    panel.border = element_rect(colour = "black", fill = NA, linewidth = 1)  # Box around each plot with correct linewidth argument
+    panel.border = element_rect(colour = "black", fill = NA, linewidth = 1)  #Box around each plot with correct linewidth argument
   ) +
-  guides(fill = guide_legend(ncol = 7)) +  # Adjust number of columns in legend for better fit
-  labs(x = "Day Number", y = "Relative Abundance")  # Removed the title
+  guides(fill = guide_legend(ncol = 7)) +  #Adjust number of columns in legend for better fit
+  labs(x = "Day Number", y = "Relative Abundance")  #Removed the title
 
-#Print the plot
+#Print plot
 print(phyplot4)
 
 
@@ -440,7 +472,7 @@ print(phyplot4)
 physeq_df4 <- physeq_df %>%
   group_by(date, Phylum, Family, plastic_type, plastic_conc) %>%
   summarise(Abundance = sum(Abundance), .groups = 'drop') %>%
-  # Update the plastic_type to correct labels
+  #Update the plastic_type to correct labels
   mutate(plastic_type = case_when(
     plastic_type == "TPU181" ~ "TPU 181",
     plastic_type == "TPUFC2.1" ~ "TPU FC2.1",
@@ -458,7 +490,7 @@ physeq_df4 <- physeq_df %>%
     TRUE ~ as.numeric(date)
   ),
   #Convert date to a factor to avoid spacing issues
-  date = factor(date, levels = c(0, 16, 36, 56, 94))  # Treat date as discrete
+  date = factor(date, levels = c(0, 16, 36, 56, 94))  #Discrete date
   )
 
 #Generate 300 distinct colors using colorRampPalette()
@@ -476,7 +508,7 @@ phyplot_family <- ggplot(physeq_df4, aes(x = date, y = Abundance, fill = Family)
     axis.title.y = element_text(face = "bold", size = 13),  #Bold y-axis title
     axis.text.x = element_text(size = 7, angle = 45, hjust = 1),  #Tilt x-axis labels to reduce overlap
     axis.text.y = element_text(size = 7),  #Increase size of y-axis tick labels
-    legend.position = "none",  # Remove the legend
+    legend.position = "none",  #Remove the legend
     panel.background = element_blank(),  #Remove grey background
     panel.grid.major = element_blank(),  #Remove major gridlines
     panel.grid.minor = element_blank(),  #Remove minor gridlines
@@ -484,7 +516,7 @@ phyplot_family <- ggplot(physeq_df4, aes(x = date, y = Abundance, fill = Family)
   ) +
   labs(x = "Day Number", y = "Relative Abundance", title = "Family-level Abundance for Each Phylum")  # Add plot title
 
-#Print the plot
+#Print plot
 print(phyplot_family)
 
 ##Look over all 27 Phyla
@@ -505,29 +537,29 @@ plastic_concs <- unique(physeq_df4$plastic_conc)
     
     # Create the bar plot for the current plastic type and concentration
     #phyplot_family <- ggplot(subset_data, aes(x = date, y = Abundance, fill = Family)) +
-      #geom_bar(stat = "identity", position = "stack", width = 0.8) +  # Stack families for each date
-      #facet_wrap(~ Phylum, scales = "free_y") +  # Create a separate facet for each phylum
-      #scale_x_discrete(name = "Day Number") +  # Use discrete scale for date
-      #scale_fill_manual(values = custom_col294) +  # Use custom color palette with 294 colors
+      #geom_bar(stat = "identity", position = "stack", width = 0.8) +  #Stack families for each date
+      #facet_wrap(~ Phylum, scales = "free_y") +  #Create a separate facet for each phylum
+      #scale_x_discrete(name = "Day Number") +  #Use discrete scale for date
+      #scale_fill_manual(values = custom_col294) +  #Use custom color palette with 294 colors
       # Update theme to bold titles, remove grids, and add box around each facet
       #theme(
-        #axis.title.x = element_text(face = "bold", size = 13),  # Bold x-axis title
-        #axis.title.y = element_text(face = "bold", size = 13),  # Bold y-axis title
-        #axis.text.x = element_text(size = 7, angle = 45, hjust = 1),  # Tilt x-axis labels to reduce overlap
-        #axis.text.y = element_text(size = 7),  # Increase size of y-axis tick labels
-        #legend.position = "none",  # Remove the legend
-        #panel.background = element_blank(),  # Remove grey background
-        #panel.grid.major = element_blank(),  # Remove major gridlines
-        #panel.grid.minor = element_blank(),  # Remove minor gridlines
-        #panel.border = element_rect(colour = "black", fill = NA, linewidth = 1)  # Box around each plot with correct linewidth argument
+        #axis.title.x = element_text(face = "bold", size = 13),  #Bold x-axis title
+        #axis.title.y = element_text(face = "bold", size = 13),  #Bold y-axis title
+        #axis.text.x = element_text(size = 7, angle = 45, hjust = 1),  #Tilt x-axis labels to reduce overlap
+        #axis.text.y = element_text(size = 7),  #Increase size of y-axis tick labels
+        #legend.position = "none",  #Remove the legend
+        #panel.background = element_blank(),  #Remove grey background
+        #panel.grid.major = element_blank(),  #Remove major gridlines
+        #panel.grid.minor = element_blank(),  #Remove minor gridlines
+        #panel.border = element_rect(colour = "black", fill = NA, linewidth = 1)  #Box around each plot with correct linewidth argument
       #) +
       #labs(
         #x = "Day Number",
         #y = "Relative Abundance",
         #title = paste("Family-level Abundance for Phylum\nPlastic Type:", ptype, "| Plastic Concentration:", pconc)
-      #)  # Add plot title with context of plastic type and concentration
+      #)  #Add plot title with context of plastic type and concentration
     
-    # Print the plot
+    #Print the plot
     #print(phyplot_family)
   #}
 #}
@@ -569,12 +601,12 @@ phyplot_top_families <- ggplot(top_families_df, aes(x = date, y = Abundance, fil
     x = "Sampling Date",
     y = "Relative Abundance",
     title = "Family-level Abundance of Top 3 Phyla for Each Tank"
-  )  # Add plot title
+  )  #Add plot title
 
-#Print the plot
+#Print plot
 print(phyplot_top_families)
 
-#Seperte figure for each of the 3 phyla
+#Separate figure for each of the 3 phyla
 #Identify the top 3 phyla across the entire dataset
 top_phyla_overall <- physeq_df4 %>%
   group_by(Phylum) %>%
@@ -591,90 +623,90 @@ physeq_df_phylum3 <- physeq_df4 %>% filter(Phylum == top_phyla_overall[3])
 #Create separate plots for each of the top 3 phyla, with legends
 #Plot for phylum 1
 phyplot_phylum1_Proteobacteria <- ggplot(physeq_df_phylum1, aes(x = date, y = Abundance, fill = Family)) +
-  geom_bar(stat = "identity", position = "stack", width = 0.7) +  # Stack families for each date
-  facet_grid(plastic_type ~ plastic_conc) +  # Create a separate facet for each tank
-  scale_x_discrete(name = "Day Number") +  # Use discrete scale for dates
+  geom_bar(stat = "identity", position = "stack", width = 0.7) +  #Stack families for each date
+  facet_grid(plastic_type ~ plastic_conc) +  #Create a separate facet for each tank
+  scale_x_discrete(name = "Day Number") +  #Use discrete scale for dates
   scale_fill_manual(values = colorRampPalette(c("red", "blue", "green", "orange", "purple", "yellow", "cyan", "pink", "brown", "grey"))(length(unique(physeq_df_phylum1$Family)))) +  # Use custom color palette for families
-  # Update theme to bold titles, remove grids, add box around each facet, and add legend back in
+  #Update theme to bold titles, remove grids, add box around each facet, and add legend back in
   theme(
-    axis.title.x = element_text(face = "bold", size = 13),  # Bold x-axis title
-    axis.title.y = element_text(face = "bold", size = 13),  # Bold y-axis title
-    axis.text.x = element_text(size = 7, angle = 0, hjust = 0.5),  # Center-align x-axis tick labels
-    axis.text.y = element_text(size = 7),  # Increase size of y-axis tick labels
-    legend.position = "right",  # Move the legend below the plot
-    legend.title = element_text(face = "bold", size = 10),  # Bold legend title
-    legend.text = element_text(size = 6),  # Customize legend text size
-    legend.key.size = unit(0.6, "lines"),  # Adjust spacing between legend items
-    legend.key.height = unit(0.4, "lines"),  # Reduce height of legend keys
-    panel.background = element_blank(),  # Remove grey background
-    panel.grid.major = element_blank(),  # Remove major gridlines
-    panel.grid.minor = element_blank(),  # Remove minor gridlines
-    panel.border = element_rect(colour = "black", fill = NA, linewidth = 1)  # Box around each plot with correct linewidth argument
+    axis.title.x = element_text(face = "bold", size = 13),  #Bold x-axis title
+    axis.title.y = element_text(face = "bold", size = 13),  #Bold y-axis title
+    axis.text.x = element_text(size = 7, angle = 0, hjust = 0.5),  #Center-align x-axis tick labels
+    axis.text.y = element_text(size = 7),  #Increase size of y-axis tick labels
+    legend.position = "right",  #Move the legend below the plot
+    legend.title = element_text(face = "bold", size = 10),  #Bold legend title
+    legend.text = element_text(size = 6),  #Customize legend text size
+    legend.key.size = unit(0.6, "lines"),  #Adjust spacing between legend items
+    legend.key.height = unit(0.4, "lines"),  #Reduce height of legend keys
+    panel.background = element_blank(),  #Remove grey background
+    panel.grid.major = element_blank(),  #Remove major gridlines
+    panel.grid.minor = element_blank(),  #Remove minor gridlines
+    panel.border = element_rect(colour = "black", fill = NA, linewidth = 1)  #Box around each plot with correct linewidth argument
   ) +
-  guides(fill = guide_legend(ncol = 3)) +  # Adjust the number of columns in the legend for better fit
+  guides(fill = guide_legend(ncol = 3)) +  #Adjust the number of columns in the legend for better fit
   labs(
     x = "Day Number",
     y = "Relative Abundance",
     title = paste("Family-level Abundance of Top Phylum:", top_phyla_overall[1])
-  )  # Add plot title
+  )  #Add plot title
 
 #Plot for Phylum 2
 phyplot_phylum2_Bacteroidota <- ggplot(physeq_df_phylum2, aes(x = date, y = Abundance, fill = Family)) +
-  geom_bar(stat = "identity", position = "stack", width = 0.7) +  # Stack families for each date
-  facet_grid(plastic_type ~ plastic_conc) +  # Create a separate facet for each tank
-  scale_x_discrete(name = "Day Number") +  # Use discrete scale for dates
+  geom_bar(stat = "identity", position = "stack", width = 0.7) +  #Stack families for each date
+  facet_grid(plastic_type ~ plastic_conc) +  #Create a separate facet for each tank
+  scale_x_discrete(name = "Day Number") +  #Use discrete scale for dates
   scale_fill_manual(values = colorRampPalette(c("red", "blue", "green", "orange", "purple", "yellow", "cyan", "pink", "brown", "grey"))(length(unique(physeq_df_phylum2$Family)))) +  # Use custom color palette for families
-  # Update theme to bold titles, remove grids, add box around each facet, and add legend back in
+  #Update theme to bold titles, remove grids, add box around each facet, and add legend back in
   theme(
-    axis.title.x = element_text(face = "bold", size = 13),  # Bold x-axis title
-    axis.title.y = element_text(face = "bold", size = 13),  # Bold y-axis title
-    axis.text.x = element_text(size = 7, angle = 0, hjust = 0.5),  # Center-align x-axis tick labels
-    axis.text.y = element_text(size = 7),  # Increase size of y-axis tick labels
-    legend.position = "right",  # Move the legend below the plot
-    legend.title = element_text(face = "bold", size = 10),  # Bold legend title
-    legend.text = element_text(size = 8),  # Customize legend text size
-    legend.key.size = unit(0.6, "lines"),  # Adjust spacing between legend items
-    legend.key.height = unit(0.4, "lines"),  # Reduce height of legend keys
-    panel.background = element_blank(),  # Remove grey background
-    panel.grid.major = element_blank(),  # Remove major gridlines
-    panel.grid.minor = element_blank(),  # Remove minor gridlines
-    panel.border = element_rect(colour = "black", fill = NA, linewidth = 1)  # Box around each plot with correct linewidth argument
+    axis.title.x = element_text(face = "bold", size = 13),  #Bold x-axis title
+    axis.title.y = element_text(face = "bold", size = 13),  #Bold y-axis title
+    axis.text.x = element_text(size = 7, angle = 0, hjust = 0.5),  #Center-align x-axis tick labels
+    axis.text.y = element_text(size = 7),  #Increase size of y-axis tick labels
+    legend.position = "right",  #Move the legend below the plot
+    legend.title = element_text(face = "bold", size = 10),  #Bold legend title
+    legend.text = element_text(size = 8),  #Customize legend text size
+    legend.key.size = unit(0.6, "lines"),  #Adjust spacing between legend items
+    legend.key.height = unit(0.4, "lines"),  #Reduce height of legend keys
+    panel.background = element_blank(),  #Remove grey background
+    panel.grid.major = element_blank(),  #Remove major gridlines
+    panel.grid.minor = element_blank(),  #Remove minor gridlines
+    panel.border = element_rect(colour = "black", fill = NA, linewidth = 1)  #Box around each plot with correct linewidth argument
   ) +
-  guides(fill = guide_legend(ncol = 2)) +  # Adjust the number of columns in the legend for better fit
+  guides(fill = guide_legend(ncol = 2)) +  #Adjust the number of columns in the legend for better fit
   labs(
     x = "Day Number",
     y = "Relative Abundance",
     title = paste("Family-level Abundance of Top Phylum:", top_phyla_overall[2])
-  )  # Add plot title
+  )  #Add plot title
 
 #Plot for Phylum 3
 phyplot_phylum3_Cyanobacteria <- ggplot(physeq_df_phylum3, aes(x = date, y = Abundance, fill = Family)) +
-  geom_bar(stat = "identity", position = "stack", width = 0.7) +  # Stack families for each date
-  facet_grid(plastic_type ~ plastic_conc) +  # Create a separate facet for each tank
-  scale_x_discrete(name = "Day Number") +  # Use discrete scale for dates
+  geom_bar(stat = "identity", position = "stack", width = 0.7) +  #Stack families for each date
+  facet_grid(plastic_type ~ plastic_conc) +  #Create a separate facet for each tank
+  scale_x_discrete(name = "Day Number") +  #Use discrete scale for dates
   scale_fill_manual(values = colorRampPalette(c("red", "blue", "green", "orange", "purple", "yellow", "cyan", "pink", "brown", "grey"))(length(unique(physeq_df_phylum3$Family)))) +  # Use custom color palette for families
   #Update theme to bold titles, remove grids, add box around each facet, and add legend back in
   theme(
-    axis.title.x = element_text(face = "bold", size = 13),  # Bold x-axis title
-    axis.title.y = element_text(face = "bold", size = 13),  # Bold y-axis title
-    axis.text.x = element_text(size = 7, angle = 0, hjust = 0.5),  # Center-align x-axis tick labels
-    axis.text.y = element_text(size = 7),  # Increase size of y-axis tick labels
-    legend.position = "right",  # Move the legend below the plot
-    legend.title = element_text(face = "bold", size = 10),  # Bold legend title
-    legend.text = element_text(size = 8),  # Customize legend text size
-    legend.key.size = unit(0.6, "lines"),  # Adjust spacing between legend items
-    legend.key.height = unit(0.4, "lines"),  # Reduce height of legend keys
-    panel.background = element_blank(),  # Remove grey background
-    panel.grid.major = element_blank(),  # Remove major gridlines
-    panel.grid.minor = element_blank(),  # Remove minor gridlines
-    panel.border = element_rect(colour = "black", fill = NA, linewidth = 1)  # Box around each plot with correct linewidth argument
+    axis.title.x = element_text(face = "bold", size = 13),  #Bold x-axis title
+    axis.title.y = element_text(face = "bold", size = 13),  #Bold y-axis title
+    axis.text.x = element_text(size = 7, angle = 0, hjust = 0.5),  #Center-align x-axis tick labels
+    axis.text.y = element_text(size = 7),  #Increase size of y-axis tick labels
+    legend.position = "right",  #Move the legend below the plot
+    legend.title = element_text(face = "bold", size = 10),  #Bold legend title
+    legend.text = element_text(size = 8),  #Customize legend text size
+    legend.key.size = unit(0.6, "lines"),  #Adjust spacing between legend items
+    legend.key.height = unit(0.4, "lines"),  #Reduce height of legend keys
+    panel.background = element_blank(),  #Remove grey background
+    panel.grid.major = element_blank(),  #Remove major gridlines
+    panel.grid.minor = element_blank(),  #Remove minor gridlines
+    panel.border = element_rect(colour = "black", fill = NA, linewidth = 1)  #Box around each plot with correct linewidth argument
   ) +
-  guides(fill = guide_legend(ncol = 1)) +  # Adjust the number of columns in the legend for better fit
+  guides(fill = guide_legend(ncol = 1)) +  #Adjust the number of columns in the legend for better fit
   labs(
     x = "Day Number",
     y = "Relative Abundance",
     title = paste("Family-level Abundance of Top Phylum:", top_phyla_overall[3])
-  )  # Add plot title
+  )  #Add plot title
 
 #Print the plots
 print(phyplot_phylum1_Proteobacteria)
@@ -686,11 +718,11 @@ print(phyplot_phylum3_Cyanobacteria)
 ###########PERMANOVA analysis below################
 ###################################################
 
-####Begin addonis2 analysis - Permutation Multivariate Analysis of Variance (PERMANOVA)
+#Begin addonis2 analysis - Permutation Multivariate Analysis of Variance (PERMANOVA)
 #Convert Phyloseq data to usable formats
 
 meta_df <- as(sample_data(UniFrac_Phylo_Object), "data.frame")
-#Ensure factors and numeric variables are correctly specified
+#Make sure factors and numeric variables are specified correctly 
 meta_df$plastic_type <- as.factor(meta_df$plastic_type)
 meta_df$plastic_conc <- as.numeric(as.character(meta_df$plastic_conc))
 meta_df$date <- as.factor(meta_df$date)
@@ -701,49 +733,48 @@ meta_df$date <- factor(meta_df$date, levels = c("March_7", "March_23", "April_12
 
 
 #Run the global PERMANOVAs
-# ASV Level with Bray-Curtis
+#ASV level with Bray-Curtis
 set.seed(55)
 adonis2_bray_asv <- adonis2(bray_dist ~ plastic_type * plastic_conc * date + chla, data = meta_df, permutations = 1000, by = "terms")
 print("ASV Level - Bray-Curtis")
 print(adonis2_bray_asv)
 
-# ASV Level with Weighted UniFrac
+#ASV Level with Weighted UniFrac
 set.seed(66)
 adonis2_unifrac_asv <- adonis2(wdistUni ~ plastic_type * plastic_conc * date + chla, data = meta_df, permutations = 1000, by = "terms")
 print("ASV Level - Weighted UniFrac")
-print(adonis2_unifrac_asv)
+print(adonis2_unifrac_asv) #MANUSCRIPT [Extended Data Table 6]
 
-# Family Level with Bray-Curtis
+#Family level with Bray-Curtis
 set.seed(77)
 adonis2_bray_family <- adonis2(bray_dist_family ~ plastic_type * plastic_conc * date + chla, data = meta_df, permutations = 1000, by = "terms")
 print("Family Level - Bray-Curtis")
 print(adonis2_bray_family)
 
-# Family Level with Weighted UniFrac
+#Family level with Weighted UniFrac
 set.seed(88)
 adonis2_unifrac_family <- adonis2(wdistUni_family ~ plastic_type * plastic_conc * date + chla, data = meta_df, permutations = 1000, by = "terms")
 print("Family Level - Weighted UniFrac")
 print(adonis2_unifrac_family)
 
-# Phylum Level with Bray-Curtis
+#Phylum level with Bray-Curtis
 set.seed(99)
 adonis2_bray_phylum <- adonis2(bray_dist_phylum ~ plastic_type * plastic_conc * date + chla, data = meta_df, permutations = 1000, by = "terms")
 print("Phylum Level - Bray-Curtis")
 print(adonis2_bray_phylum)
 
-# Phylum Level with Weighted UniFrac
+#Phylum level with Weighted UniFrac
 set.seed(11)
 adonis2_unifrac_phylum <- adonis2(wdistUni_phylum ~ plastic_type * plastic_conc * date + chla, data = meta_df, permutations = 1000, by = "terms")
 print("Phylum Level - Weighted UniFrac")
 print(adonis2_unifrac_phylum)
 
-##Compare models
-# Load required packages
-library(dplyr)
-library(tibble)
-library(tidyr)
+#Compare models
+#library(dplyr)
+#library(tibble)
+#library(tidyr)
 
-# Organize your adonis2 models into a list
+#Organize adonis2 models into a list
 models <- list(
   ASV_Bray       = adonis2_bray_asv,
   ASV_UniFrac    = adonis2_unifrac_asv,
@@ -753,28 +784,28 @@ models <- list(
   Phylum_UniFrac = adonis2_unifrac_phylum
 )
 
-# Function to summarize adonis2 model output
+#Function to summarize adonis2 model output
 summarize_adonis2 <- function(model, name) {
   aov_df <- as.data.frame(model)
   aov_df$term <- rownames(aov_df)
   
-  # Total R²: exclude residual and total
+  #Total R2: exclude residual and total
   total_r2 <- sum(aov_df$R2[!(aov_df$term %in% c("Residual", "Total"))])
   
-  # Sample size (n) and number of predictors (p)
+  #Sample size (n) and number of predictors (p)
   n <- sum(aov_df$Df)
   p <- sum(!(aov_df$term %in% c("Residual", "Total")))
   
-  # Adjusted R²
+  #Adjusted R2
   adj_r2 <- 1 - ((1 - total_r2) * (n - 1) / (n - p - 1))
   
-  # Significant terms (p <= 0.05)
+  #Significant terms (p <= 0.05)
   significant_terms <- aov_df %>%
     filter(!(term %in% c("Residual", "Total")) & `Pr(>F)` <= 0.05) %>%
     pull(term) %>%
     paste(collapse = ", ")
   
-  # Create summary tibble
+  #Create summary tibble
   tibble(
     Model = name,
     Total_R2 = round(total_r2, 3),
@@ -783,7 +814,7 @@ summarize_adonis2 <- function(model, name) {
   )
 }
 
-# Generate and print the summary table
+#Create and print the summary table
 summary_table <- bind_rows(
   lapply(names(models), function(n) summarize_adonis2(models[[n]], n))
 )
@@ -793,63 +824,65 @@ view(summary_table)
 #write.csv(summary_table, file = "Distance_Matrix_comparisions_table_global_PERMANOVAs.csv", row.names = FALSE)
 
 
-# Convert summary_table to long format for plotting
+#Convert summary_table to long format for plotting
 summary_long <- summary_table %>%
   pivot_longer(cols = c(Total_R2, Adjusted_R2), names_to = "Metric", values_to = "R2")
 
-# Order models for better readability
+#Order models for readability
 summary_long$Model <- factor(summary_long$Model, levels = summary_table$Model)
 
-# Create the barplot
+#Create barplot to compare visually
 ggplot(summary_long, aes(x = Model, y = R2, fill = Metric)) +
   geom_bar(stat = "identity", position = position_dodge(width = 0.7), width = 0.6) +
   scale_fill_manual(values = c("#4B9CD3", "#FFA500")) +
-  labs(title = "Total and Adjusted R² Across PERMANOVA Models",
+  labs(title = "Total and Adjusted R2 Across PERMANOVA Models",
        x = "Model",
        y = "R² Value",
        fill = "Metric") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# --- Homogeneity of dispersion (PERMDISP) checks ---
+#################################################
+###Homogeneity of dispersion (PERMDISP) checks###
+#################################################
 
-# ASV Level - Bray-Curtis
+#ASV level - Bray-Curtis
 disp_bray_asv <- betadisper(bray_dist, meta_df$plastic_type)
 set.seed(42)
 anova(disp_bray_asv); permutest(disp_bray_asv); TukeyHSD(disp_bray_asv)
 
-# ASV Level - UniFrac
+#ASV level - UniFrac
 disp_unifrac_asv <- betadisper(wdistUni, meta_df$plastic_type)
 set.seed(43)
 anova(disp_unifrac_asv); permutest(disp_unifrac_asv); TukeyHSD(disp_unifrac_asv)
 
-# Family Level - Bray-Curtis
+#Family level - Bray-Curtis
 disp_bray_family <- betadisper(bray_dist_family, meta_df$plastic_type)
 set.seed(44)
 anova(disp_bray_family); permutest(disp_bray_family); TukeyHSD(disp_bray_family)
 
-# Family Level - UniFrac
+#Family level - UniFrac
 disp_unifrac_family <- betadisper(wdistUni_family, meta_df$plastic_type)
 set.seed(45)
 anova(disp_unifrac_family); permutest(disp_unifrac_family); TukeyHSD(disp_unifrac_family)
 
-# Phylum Level - Bray-Curtis
+#Phylum level - Bray-Curtis
 disp_bray_phylum <- betadisper(bray_dist_phylum, meta_df$plastic_type)
 set.seed(46)
 anova(disp_bray_phylum); permutest(disp_bray_phylum); TukeyHSD(disp_bray_phylum)
 
-# Phylum Level - UniFrac
+#Phylum level - UniFrac
 disp_unifrac_phylum <- betadisper(wdistUni_phylum, meta_df$plastic_type)
 set.seed(47)
 anova(disp_unifrac_phylum); permutest(disp_unifrac_phylum); TukeyHSD(disp_unifrac_phylum)
 
 
 
-#Ok now run for each date separately
-#List of dates for which you want to run PERMANOVA
+#OK now run for each date separately
+#List of dates to run PERMANOVA for each
 dates <- c("March_7", "March_23", "April_12", "May_3", "June_9")
 
-# Convert distance matrices to matrix for subsetting
+#Convert distance matrices to matrix for subsetting
 bray_asv_matrix     <- as.matrix(bray_dist)
 unifrac_asv_matrix  <- as.matrix(wdistUni)
 bray_fam_matrix     <- as.matrix(bray_dist_family)
@@ -858,7 +891,7 @@ bray_phy_matrix     <- as.matrix(bray_dist_phylum)
 unifrac_phy_matrix  <- as.matrix(wdistUni_phylum)
 
 
-# Initialize result storage
+#Set up results storage
 results_bray_asv     <- list()
 results_unifrac_asv  <- list()
 results_bray_family  <- list()
@@ -867,12 +900,12 @@ results_bray_phylum  <- list()
 results_unifrac_phylum <- list()
 
 
-# Loop over each date
+#Loop over each date
 for (d in dates) {
   subset_df <- meta_df[meta_df$date == d, ]
   sample_ids <- rownames(subset_df)
   
-  # Subset all distance matrices
+  #Subset all distance matrices
   subset_bray_asv    <- as.dist(bray_asv_matrix[sample_ids, sample_ids])
   subset_unifrac_asv <- as.dist(unifrac_asv_matrix[sample_ids, sample_ids])
   subset_bray_fam    <- as.dist(bray_fam_matrix[sample_ids, sample_ids])
@@ -880,25 +913,25 @@ for (d in dates) {
   subset_bray_phy    <- as.dist(bray_phy_matrix[sample_ids, sample_ids])
   subset_unifrac_phy <- as.dist(unifrac_phy_matrix[sample_ids, sample_ids])
   
-  # --- ASV Level ---
+  #ASV level
   set.seed(31)
   res_bray_asv <- adonis2(subset_bray_asv ~ plastic_type * plastic_conc + chla, data = subset_df, permutations = 1000, by = "terms")
   set.seed(32)
   res_unifrac_asv <- adonis2(subset_unifrac_asv ~ plastic_type * plastic_conc + chla, data = subset_df, permutations = 1000, by = "terms")
   
-  # --- Family Level ---
+  #Family level
   set.seed(33)
   res_bray_fam <- adonis2(subset_bray_fam ~ plastic_type * plastic_conc + chla, data = subset_df, permutations = 1000, by = "terms")
   set.seed(34)
   res_unifrac_fam <- adonis2(subset_unifrac_fam ~ plastic_type * plastic_conc + chla, data = subset_df, permutations = 1000, by = "terms")
   
-  # --- Phylum Level ---
+  #Phylum level
   set.seed(35)
   res_bray_phy <- adonis2(subset_bray_phy ~ plastic_type * plastic_conc + chla, data = subset_df, permutations = 1000, by = "terms")
   set.seed(36)
   res_unifrac_phy <- adonis2(subset_unifrac_phy ~ plastic_type * plastic_conc + chla, data = subset_df, permutations = 1000, by = "terms")
   
-  # Save results
+  #Save the results
   results_bray_asv[[d]]       <- res_bray_asv
   results_unifrac_asv[[d]]    <- res_unifrac_asv
   results_bray_family[[d]]    <- res_bray_fam
@@ -906,7 +939,7 @@ for (d in dates) {
   results_bray_phylum[[d]]    <- res_bray_phy
   results_unifrac_phylum[[d]] <- res_unifrac_phy
   
-  # Print results
+  #Print the results
   cat(paste0("\n--- ", d, " ---\n"))
   cat("ASV - Bray-Curtis:\n"); print(res_bray_asv)
   cat("ASV - UniFrac:\n"); print(res_unifrac_asv)
@@ -916,7 +949,7 @@ for (d in dates) {
   cat("Phylum - UniFrac:\n"); print(res_unifrac_phy)
 }
 
-# Function to print results by taxonomic level and distance across all dates
+#Function to print results by taxonomic level and distance across all dates
 print_results_by_type <- function(result_list, label) {
   cat(paste0("\n### ", label, " ###\n"))
   for (d in names(result_list)) {
@@ -925,9 +958,9 @@ print_results_by_type <- function(result_list, label) {
   }
 }
 
-# Print results for each taxonomic level and distance metric
+#Print results for each taxonomic level and distance metric
 print_results_by_type(results_bray_asv,       "ASV - Bray-Curtis")
-print_results_by_type(results_unifrac_asv,    "ASV - UniFrac")
+print_results_by_type(results_unifrac_asv,    "ASV - UniFrac") #MANUSCRIPT [Extended Data Table 7]
 print_results_by_type(results_bray_family,    "Family - Bray-Curtis")
 print_results_by_type(results_unifrac_family, "Family - UniFrac")
 print_results_by_type(results_bray_phylum,    "Phylum - Bray-Curtis")
@@ -939,31 +972,29 @@ print_results_by_type(results_unifrac_phylum, "Phylum - UniFrac")
 
 #Ok now Run the PCoA Code for each metric
 
-
 ###########PCoA code##########
-########### PCoA code ##########
 
-# Confirm metadata and phyloseq object alignment
+#Double check metadata and phyloseq object alignment
 all(rownames(meta_df) %in% sample_names(UniFrac_Phylo_Object))
 all(rownames(meta_df) %in% sample_names(BioPlastics_family))
 all(rownames(meta_df) %in% sample_names(BioPlastics_phylum))
 
-# Add metadata to phyloseq objects
+#Add metadata to phyloseq objects
 sample_data(UniFrac_Phylo_Object) <- sample_data(meta_df)
 sample_data(BioPlastics_family)   <- sample_data(meta_df)
 sample_data(BioPlastics_phylum)   <- sample_data(meta_df)
 
-# Subset by date
+#Subset by date
 asv_physeq    <- subset_samples(UniFrac_Phylo_Object, date %in% c("March_7", "March_23", "April_12", "May_3", "June_9"))
 family_physeq <- subset_samples(BioPlastics_family,   date %in% c("March_7", "March_23", "April_12", "May_3", "June_9"))
 phylum_physeq <- subset_samples(BioPlastics_phylum,   date %in% c("March_7", "March_23", "April_12", "May_3", "June_9"))
 
-# Remove taxa with zero counts
+#Remove taxa with zero counts
 asv_physeq    <- prune_taxa(taxa_sums(asv_physeq) > 0, asv_physeq)
 family_physeq <- prune_taxa(taxa_sums(family_physeq) > 0, family_physeq)
 phylum_physeq <- prune_taxa(taxa_sums(phylum_physeq) > 0, phylum_physeq)
 
-# Ordinate (PCoA)
+#Run each ordination (PCoA)
 set.seed(12)
 pcoa_bray_asv    <- ordinate(physeq = asv_physeq,    method = "PCoA", distance = "bray")
 set.seed(13)
@@ -978,17 +1009,17 @@ pcoa_unifrac_family <- ordinate(physeq = family_physeq, method = "PCoA", distanc
 set.seed(17)
 pcoa_unifrac_phylum <- ordinate(physeq = phylum_physeq, method = "PCoA", distance = "wunifrac")
 
-# Format date labels for display
+#Format date labels for better display
 meta_df$date <- gsub("_", " ", meta_df$date)
 
-# Define plot aesthetics
+#Define plot aesthetics
 custom_shapes <- c("Elastollan" = 16, "TPU181" = 17, "TPUFC2.1" = 18)
 custom_colors <- c("March 7" = "goldenrod2", "March 23" = "darkorchid3", 
                    "April 12" = "deeppink3", "May 3" = "darkorange3", "June 9" = "lightblue3")
 
-# Plot function
+#Function for plotting
 plot_pcoa <- function(physeq, ordination, title) {
-  sample_data(physeq) <- sample_data(meta_df)  # Sync metadata
+  sample_data(physeq) <- sample_data(meta_df)  #Sync metadata
   plot_ordination(physeq, ordination, color = "date", shape = "plastic_type", axes = c(1, 2)) +
     geom_point(size = 4, alpha = 0.8) +
     scale_color_manual(values = custom_colors) +
@@ -1005,7 +1036,7 @@ plot_pcoa <- function(physeq, ordination, title) {
     )
 }
 
-# Generate plots
+#Generate plots
 plot_bray_asv    <- plot_pcoa(asv_physeq,    pcoa_bray_asv,    "Bray-Curtis PCoA - ASV Level")
 plot_bray_family <- plot_pcoa(family_physeq, pcoa_bray_family, "Bray-Curtis PCoA - Family Level")
 plot_bray_phylum <- plot_pcoa(phylum_physeq, pcoa_bray_phylum, "Bray-Curtis PCoA - Phylum Level")
@@ -1014,7 +1045,7 @@ plot_unifrac_asv    <- plot_pcoa(asv_physeq,    pcoa_unifrac_asv,    "Weighted U
 plot_unifrac_family <- plot_pcoa(family_physeq, pcoa_unifrac_family, "Weighted UniFrac PCoA - Family Level")
 plot_unifrac_phylum <- plot_pcoa(phylum_physeq, pcoa_unifrac_phylum, "Weighted UniFrac PCoA - Phylum Level")
 
-# Display plots
+#Print plots
 print(plot_bray_asv)
 print(plot_bray_family)
 print(plot_bray_phylum)
@@ -1023,11 +1054,13 @@ print(plot_unifrac_asv)
 print(plot_unifrac_family)
 print(plot_unifrac_phylum)
 
-##############
+#############################
+#############################
 
 #Sticking with UniFrac - ASV level for further visualizations
-###Ok try to do a three panel by plastic type
-#Ensure plastic_type is a character in metadata
+
+###OK try to do a three panel by plastic type
+#Make sure plastic_type is a character in metadata
 meta_df$plastic_type <- as.character(meta_df$plastic_type)
 sample_data(UniFrac_Phylo_Object) <- sample_data(meta_df)
 
@@ -1038,7 +1071,7 @@ custom_shapes <- c("Elastollan" = 16, "TPU181" = 17, "TPUFC2.1" = 18)
 custom_colors <- c("March 7" = "goldenrod2", "March 23" = "darkorchid3", 
                    "April 12" = "deeppink3", "May 3" = "darkorange3", "June 9" = "lightblue3")
 
-#Subset the phyloseq object by each plastic type
+#Subset the phyloseq object by each plastic_type
 elastollan_phylo <- subset_samples(UniFrac_Phylo_Object, plastic_type == "Elastollan")
 elastollan_phylo <- prune_taxa(taxa_sums(elastollan_phylo) > 0, elastollan_phylo)
 
@@ -1119,7 +1152,7 @@ custom_colors <- c(
 #Update the legend labels for the plots
 pcoa_plot_elastollan <- pcoa_plot_elastollan +
   scale_color_manual(
-    values = custom_colors,                #Ensure colors align with original dates
+    values = custom_colors,                #Make sure colors align with original dates
     breaks = names(custom_colors),         #Match to dates used in the data
     labels = c("0", "16", "36", "56", "94"), #Replace labels with day numbers
     name = "Day Number"                    #Update legend title
@@ -1141,30 +1174,30 @@ pcoa_plot_tpufc2 <- pcoa_plot_tpufc2 +
     name = "Day Number"
   )
 
-#Display the updated plots
+#Print updated plots
 print(pcoa_plot_elastollan)
 print(pcoa_plot_tpu181)
 print(pcoa_plot_tpufc2)
 
 
-#Update the plots
+#Update plots
 #Define manual concentration labels directly
 #Assuming concentrations are in the original phyloseq metadata as plastic_conc
 manual_concentration_labels <- data.frame(
   plastic_conc = c(0.000, 0.004, 0.008, 0.013, 0.023, 0.041, 0.072, 0.126, 0.220, 0.385),
-  plastic_conc_label = as.character(0:9)  # Labels from 0 to 9
+  plastic_conc_label = as.character(0:9)  #Labels from 0 to 9
 )
 
 #Function to update PCoA plot by adding annotations without modifying meta_df
 update_pcoa_plot_manual_labels <- function(pcoa_plot, phylo_obj, ordination) {
-  # Extract metadata for the given phyloseq object
+  #Extract metadata for the given phyloseq object
   local_meta_df <- as(sample_data(phylo_obj), "data.frame")
-  local_meta_df$SampleID <- rownames(local_meta_df)  # Add SampleID to use for merging
+  local_meta_df$SampleID <- rownames(local_meta_df)  #Add SampleID to use for merging
   
   #Extract ordination coordinates as a data frame
   ordination_df <- as.data.frame(ordination$vectors[, 1:2])
-  ordination_df$SampleID <- rownames(ordination_df)  # Add SampleID to use for merging
-  colnames(ordination_df)[1:2] <- c("Axis.1", "Axis.2")  # Rename columns for easy plotting
+  ordination_df$SampleID <- rownames(ordination_df)  #Add SampleID to use for merging
+  colnames(ordination_df)[1:2] <- c("Axis.1", "Axis.2")  #Rename columns for plotting
   
   #Merge ordination data with metadata
   combined_df <- left_join(local_meta_df, ordination_df, by = "SampleID")
@@ -1174,11 +1207,11 @@ update_pcoa_plot_manual_labels <- function(pcoa_plot, phylo_obj, ordination) {
   
   #Update the existing plot with annotations (no lines)
   updated_plot <- pcoa_plot +
-    geom_point(data = combined_df, aes(x = Axis.1, y = Axis.2), size = 5, alpha = 0.8) + # Reduce size of points slightly
-    geom_text(data = combined_df, aes(x = Axis.1, y = Axis.2, label = plastic_conc_label), size = 2, color = "black", vjust = 0.5, hjust = 0.5) + # Annotations with numbers 0-9
+    geom_point(data = combined_df, aes(x = Axis.1, y = Axis.2), size = 5, alpha = 0.8) + #Reduce size of points
+    geom_text(data = combined_df, aes(x = Axis.1, y = Axis.2, label = plastic_conc_label), size = 2, color = "black", vjust = 0.5, hjust = 0.5) + #Annotate with numbers 0-9
     theme(
-      plot.title = element_blank(),   # Remove title
-      legend.position = "none"        # Remove legends
+      plot.title = element_blank(),   #Remove title
+      legend.position = "none"        #Remove legends
     )
   
   return(updated_plot)
@@ -1189,7 +1222,7 @@ pcoa_plot_elastollan_updated <- update_pcoa_plot_manual_labels(pcoa_plot_elastol
 pcoa_plot_tpu181_updated <- update_pcoa_plot_manual_labels(pcoa_plot_tpu181, tpu181_phylo, ordinate(tpu181_phylo, method = "PCoA", distance = "wunifrac"))
 pcoa_plot_tpufc2_updated <- update_pcoa_plot_manual_labels(pcoa_plot_tpufc2, tpufc2_phylo, ordinate(tpufc2_phylo, method = "PCoA", distance = "wunifrac"))
 
-#Display the updated plots
+#Print updated plots
 print(pcoa_plot_elastollan_updated)
 print(pcoa_plot_tpu181_updated)
 print(pcoa_plot_tpufc2_updated)
@@ -1197,7 +1230,7 @@ print(pcoa_plot_tpufc2_updated)
 update_pcoa_plot_no_legend <- function(pcoa_plot, phylo_obj, ordination) {
   #Extract metadata for the given phyloseq object
   local_meta_df <- as(sample_data(phylo_obj), "data.frame")
-  local_meta_df$SampleID <- rownames(local_meta_df)  # Add SampleID to use for merging
+  local_meta_df$SampleID <- rownames(local_meta_df)  #Add SampleID to use for merging
   
   #Extract ordination coordinates as a data frame
   ordination_df <- as.data.frame(ordination$vectors[, 1:2])
@@ -1210,7 +1243,7 @@ update_pcoa_plot_no_legend <- function(pcoa_plot, phylo_obj, ordination) {
   #Merge with manual labels for plastic concentration
   combined_df <- left_join(combined_df, manual_concentration_labels, by = "plastic_conc")
   
-  #Ensure plastic_conc_label is numeric
+  #Make sure plastic_conc_label is numeric
   combined_df$plastic_conc_label <- as.numeric(combined_df$plastic_conc_label)
   
   #Update the existing plot with transparency scaled by concentration
@@ -1219,8 +1252,8 @@ update_pcoa_plot_no_legend <- function(pcoa_plot, phylo_obj, ordination) {
       aes(
         size = plastic_conc_label,
         alpha = plastic_conc_label / max(plastic_conc_label, na.rm = TRUE),
-        color = date,   # Retain coloring by date
-        shape = plastic_type  # Retain shapes by plastic type
+        color = date,   #Retain coloring by date
+        shape = plastic_type  #Retain shapes by plastic type
       ),
       show.legend = FALSE
     ) +
@@ -1232,25 +1265,25 @@ update_pcoa_plot_no_legend <- function(pcoa_plot, phylo_obj, ordination) {
       hjust = 0.5
     ) +
     scale_size_continuous(
-      range = c(3, 10),  # Adjust point sizes based on concentration
-      guide = "none"     # Suppress size from legend
+      range = c(3, 10),  #Adjust point sizes based on concentration
+      guide = "none"     #Suppress size from legend
     ) +
     scale_alpha_continuous(
-      range = c(0.3, 1), # Make transparency differences more dramatic
-      guide = "none"     # Suppress alpha from legend
+      range = c(0.3, 1), #Make transparency differences more dramatic
+      guide = "none"     #Suppress alpha from legend
     ) +
     scale_color_manual(
       values = custom_colors,
       breaks = names(custom_colors),
-      labels = c("0", "16", "36", "56", "94")  # Replace labels with day numbers
+      labels = c("0", "16", "36", "56", "94")  #Replace labels with day numbers
     ) +
     scale_shape_manual(
       values = custom_shapes
     ) +
     theme_minimal() +
     theme(
-      legend.position = "none",  # Remove all legends
-      plot.title = element_blank(),  # Optionally remove title
+      legend.position = "none",  #Remove all legends
+      plot.title = element_blank(),  #Remove title
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank(),
       panel.border = element_rect(colour = "black", fill = NA, size = 1)
@@ -1259,7 +1292,7 @@ update_pcoa_plot_no_legend <- function(pcoa_plot, phylo_obj, ordination) {
   return(updated_plot)
 }
 
-#Rebuild each PCoA plot without any legends, adding transparency
+#Rebuild each PCoA plot without any legends and adding transparency
 set.seed(55)
 pcoa_plot_elastollan_no_legend <- update_pcoa_plot_no_legend(
   pcoa_plot_elastollan,
@@ -1281,17 +1314,17 @@ pcoa_plot_tpufc2_no_legend <- update_pcoa_plot_no_legend(
   ordinate(tpufc2_phylo, method = "PCoA", distance = "wunifrac")
 )
 
-#Display the updated plots
+#Print updated plots
 print(pcoa_plot_elastollan_no_legend)
 print(pcoa_plot_tpu181_no_legend)
 print(pcoa_plot_tpufc2_no_legend)
 
-#####Put them on the same scale###
-# Manually set x and y axis limits
+#####Put them on the same scale#####
+#Manually set x and y axis limits
 x_limits <- c(-0.25, 0.25)
 y_limits <- c(-0.25, 0.25)
 
-# Rebuild each plot with fixed axis limits
+#Update each plot with fixed axis limits
 pcoa_plot_elastollan_no_legend <- pcoa_plot_elastollan_no_legend +
   xlim(x_limits) +
   ylim(y_limits)
@@ -1304,19 +1337,19 @@ pcoa_plot_tpufc2_no_legend <- pcoa_plot_tpufc2_no_legend +
   xlim(x_limits) +
   ylim(y_limits)
 
-# Display the updated plots
-print(pcoa_plot_elastollan_no_legend)
-print(pcoa_plot_tpu181_no_legend)
-print(pcoa_plot_tpufc2_no_legend)
+#Print updated plots
+print(pcoa_plot_elastollan_no_legend) #[Supplementary Fig 6]
+print(pcoa_plot_tpu181_no_legend) #[Supplementary Fig 6]
+print(pcoa_plot_tpufc2_no_legend) #[Supplementary Fig 6]
 
 #####################################################
-#Ok now lets do each date separately with chla vector
+#OK now lets do each date separately with chla vector
 #Define manual concentration labels directly
 unique(meta_df$date)
 
 manual_concentration_labels <- data.frame(
   plastic_conc = c(0.000, 0.004, 0.008, 0.013, 0.023, 0.041, 0.072, 0.126, 0.220, 0.385),
-  plastic_conc_label = as.character(0:9)  # Labels from 0 to 9
+  plastic_conc_label = as.character(0:9)  #Labels from 0 to 9
 )
 
 #Custom color mapping for plastic_type
@@ -1349,8 +1382,8 @@ create_pcoa_plot <- function(phylo_obj, date_label) {
   
   #Extract ordination coordinates as a data frame from the PCoA object
   ordination_df <- as.data.frame(date_pcoa$vectors[, 1:2])
-  ordination_df$SampleID <- rownames(ordination_df)  # Add SampleID to use for merging
-  colnames(ordination_df)[1:2] <- c("Axis.1", "Axis.2")  # Rename columns for easy plotting
+  ordination_df$SampleID <- rownames(ordination_df)  #Add SampleID to use for merging
+  colnames(ordination_df)[1:2] <- c("Axis.1", "Axis.2")  #Rename columns for easy plotting
   
   #Merge ordination data with metadata for the current date
   combined_df <- left_join(local_meta_df, ordination_df, by = "SampleID")
@@ -1359,12 +1392,12 @@ create_pcoa_plot <- function(phylo_obj, date_label) {
   combined_df <- left_join(combined_df, manual_concentration_labels, by = "plastic_conc")
   
   #Fit the environmental variable (`chla`) to the ordination using `envfit`
-  ord_scores <- ordination_df[, c("Axis.1", "Axis.2")]  # Extract the ordination scores for envfit
+  ord_scores <- ordination_df[, c("Axis.1", "Axis.2")]  #Extract the ordination scores for envfit
   envfit_result <- envfit(ord_scores, local_meta_df$chla, permutations = 1000)
   
   #Create PCoA plot for the current date
   pcoa_plot <- ggplot(combined_df, aes(x = Axis.1, y = Axis.2, color = plastic_type)) +
-    geom_point(size = 5, alpha = 0.8) +  # Points with defined size
+    geom_point(size = 5, alpha = 0.8) +  #Defined point size
     geom_text(aes(label = plastic_conc_label), size = 4, color = "black", vjust = 0.5, hjust = 0.5) +  # Annotations with numbers 0-9
     scale_color_manual(
       values = custom_colors,
@@ -1408,14 +1441,14 @@ pcoa_plot_april_12 <- create_pcoa_plot(april_12_phylo, "April 12")
 pcoa_plot_may_3 <- create_pcoa_plot(may_3_phylo, "May 3")
 pcoa_plot_june_9 <- create_pcoa_plot(june_9_phylo, "June 9")
 
-#Display the plots for each date
+#Print plots for each date
 print(pcoa_plot_march_7)
 print(pcoa_plot_march_23)
 print(pcoa_plot_april_12)
 print(pcoa_plot_may_3)
 print(pcoa_plot_june_9)
 
-#update these plots
+#Update plots
 #Calculate consistent axis limits for all date-specific PCoA plots
 all_vectors <- list(
   ordinate(march_7_phylo, method = "PCoA", distance = "wunifrac")$vectors[, 1:2],
@@ -1432,7 +1465,7 @@ y_min <- min(sapply(all_vectors, function(vec) min(vec[, 2])))
 y_max <- max(sapply(all_vectors, function(vec) max(vec[, 2])))
 
 #Expand axis limits slightly to accommodate the chla vector
-expand_factor <- 0.1  # Expands by 10% to ensure enough space for arrows
+expand_factor <- 0.1  #Expands by 10% to make sure enough space for arrows
 x_range <- x_max - x_min
 y_range <- y_max - y_min
 
@@ -1442,7 +1475,6 @@ axis_limits <- list(
 )
 
 
-###Insert simplified code
 #Calculate consistent axis limits for all date-specific PCoA plots
 all_vectors <- list(
   ordinate(march_7_phylo, method = "PCoA", distance = "wunifrac")$vectors[, 1:2],
@@ -1459,7 +1491,7 @@ y_min <- min(sapply(all_vectors, function(vec) min(vec[, 2])))
 y_max <- max(sapply(all_vectors, function(vec) max(vec[, 2])))
 
 #Expand axis limits slightly to accommodate the chla vector
-expand_factor <- 0.1  # Expands by 10% to ensure enough space for arrows
+expand_factor <- 0.1  #Expands by 10% to ensure enough space for arrows
 x_range <- x_max - x_min
 y_range <- y_max - y_min
 
@@ -1524,7 +1556,7 @@ create_pcoa_plot <- function(combined_df, chla_arrow_data, title) {
     geom_text(aes(label = plastic_conc_numeric - 1), size = 4, color = "black", vjust = 0.5, hjust = 0.5) +
     scale_shape_manual(values = shape_mapping) +
     scale_color_manual(values = color_mapping) +
-    scale_alpha_continuous(range = c(0.3, 1)) +  # Ensure alpha is within a visible range
+    scale_alpha_continuous(range = c(0.3, 1)) +  #Make sure alpha is within a visible range
     theme_minimal() +
     xlim(axis_limits$xlim) + ylim(axis_limits$ylim) +
     theme(
@@ -1544,16 +1576,16 @@ create_pcoa_plot <- function(combined_df, chla_arrow_data, title) {
 # Manually defined labels
 manual_concentration_labels <- data.frame(
   plastic_conc = c(0.000, 0.004, 0.008, 0.013, 0.023, 0.041, 0.072, 0.126, 0.220, 0.385),
-  plastic_conc_numeric = 0:9  # Numeric values to be used for plotting size and alpha
+  plastic_conc_numeric = 0:9  #Numeric values to be used for plotting size and alpha
 )
 
-# Function to map concentration labels to each combined_df
+#Function to map concentration labels to each combined_df
 map_conc_labels <- function(df) {
   df <- merge(df, manual_concentration_labels, by = "plastic_conc", all.x = TRUE)
   return(df)
 }
 
-# Apply mapping to each combined_df
+#Apply mapping to each combined_df
 combined_df_march_7    <- map_conc_labels(combined_df_march_7)
 combined_df_march_23   <- map_conc_labels(combined_df_march_23)
 combined_df_april_12   <- map_conc_labels(combined_df_april_12)
@@ -1568,7 +1600,7 @@ pcoa_plot_april_12 <- create_pcoa_plot(combined_df_april_12, chla_arrow_data_apr
 pcoa_plot_may_3 <- create_pcoa_plot(combined_df_may_3, chla_arrow_data_may_3, "May 3 PCoA Plot")
 pcoa_plot_june_9 <- create_pcoa_plot(combined_df_june_9, chla_arrow_data_june_9, "June 9 PCoA Plot")
 
-#Display the updated plots for each date
+#Print updated plots for each date
 print(pcoa_plot_march_7)
 print(pcoa_plot_march_23)
 print(pcoa_plot_april_12)
@@ -1582,7 +1614,7 @@ pcoa_plot_april_12_clean <- pcoa_plot_april_12 + theme(axis.title = element_blan
 pcoa_plot_may_3_clean <- pcoa_plot_may_3 + theme(axis.title = element_blank(), plot.title = element_blank())
 pcoa_plot_june_9_clean <- pcoa_plot_june_9 + theme(axis.title = element_blank(), plot.title = element_blank())
 
-#Display the updated plots for each date
+#Print updated plots for each date
 print(pcoa_plot_march_7_clean)
 print(pcoa_plot_march_23_clean)
 print(pcoa_plot_april_12_clean)
@@ -1646,37 +1678,37 @@ pcoa_plot_april_12_icon <- create_pcoa_plot(combined_df_april_12, chla_arrow_dat
 pcoa_plot_may_3_icon <- create_pcoa_plot(combined_df_may_3, chla_arrow_data_may_3, "May 3 PCoA Plot")
 pcoa_plot_june_9_icon <- create_pcoa_plot(combined_df_june_9, chla_arrow_data_june_9, "June 9 PCoA Plot")
 
-#Display the updated plots for each date
+#Print updated plots for each date
 print(pcoa_plot_march_7_icon)
 print(pcoa_plot_march_23_icon)
 print(pcoa_plot_april_12_icon)
 print(pcoa_plot_may_3_icon)
 print(pcoa_plot_june_9_icon)
 
-#Remove axis titles and figure titles from each plot and display them
+#Remove axis titles and figure titles from each plot
 pcoa_plot_march_7_icon <- pcoa_plot_march_7_icon + theme(axis.title = element_blank(), plot.title = element_blank())
 pcoa_plot_march_23_icon <- pcoa_plot_march_23_icon + theme(axis.title = element_blank(), plot.title = element_blank())
 pcoa_plot_april_12_icon <- pcoa_plot_april_12_icon + theme(axis.title = element_blank(), plot.title = element_blank())
 pcoa_plot_may_3_icon <- pcoa_plot_may_3_icon + theme(axis.title = element_blank(), plot.title = element_blank())
 pcoa_plot_june_9_icon <- pcoa_plot_june_9_icon + theme(axis.title = element_blank(), plot.title = element_blank())
 
-#Display the updated plots for each date
-print(pcoa_plot_march_7_icon)
-print(pcoa_plot_march_23_icon)
-print(pcoa_plot_april_12_icon)
-print(pcoa_plot_may_3_icon)
-print(pcoa_plot_june_9_icon)
+#Print updated plots for each date
+print(pcoa_plot_march_7_icon) #MANUSCRIPT [Fig. 3]
+print(pcoa_plot_march_23_icon) #MANUSCRIPT [Fig. 3]
+print(pcoa_plot_april_12_icon) #MANUSCRIPT [Fig. 3]
+print(pcoa_plot_may_3_icon) #MANUSCRIPT [Fig. 3]
+print(pcoa_plot_june_9_icon) #MANUSCRIPT [Fig. 3]
 
 
+################################
+###OK now start doing biplots###
+################################
 
-
-
-###OK Now start doing biplots###
 #Attach taxonomy table to phyloseq object
 UniFrac_Phylo_Object <- merge_phyloseq(UniFrac_Phylo_Object, tax_table(as.matrix(taxa3.m)))
 
 ######## MARCH 7 ##########
-#Subset phyloseq Object for March 7  
+#Subset phyloseq object for March 7  
 march_7_phylo <- subset_samples(UniFrac_Phylo_Object, date == "March 7")
 
 #Run PCoA ordination
@@ -1708,7 +1740,7 @@ ordination_metadata_march_7$plastic_group <- factor(ordination_metadata_march_7$
 ################ ENVFIT #######################
 ###############################################
 
-# Process OTU and taxonomy at Family level
+#Process OTU and taxonomy at Family level
 otu <- otu_table(march_7_phylo)
 if (taxa_are_rows(otu)) {
   otu <- t(otu)
@@ -1728,12 +1760,12 @@ otu_table_march_7_family <- otu_table_march_7_family[!is.na(otu_table_march_7_fa
                                                        otu_table_march_7_family$Family != "", ]
 otu_table_march_7_family <- aggregate(. ~ Family, data = otu_table_march_7_family, FUN = sum)
 
-# Set Family as column names and transpose to sample × taxa for envfit
+#Set family as column names and transpose to sample × taxa for envfit
 rownames(otu_table_march_7_family) <- otu_table_march_7_family$Family
 otu_table_march_7_family$Family <- NULL
 otu_table_march_7_family <- as.data.frame(t(otu_table_march_7_family))
 
-# Process OTU and taxonomy at Genus level
+#Process OTU and taxonomy at genus level
 otu <- otu_table(march_7_phylo)
 if (taxa_are_rows(otu)) {
   otu <- t(otu)
@@ -1757,11 +1789,11 @@ rownames(otu_table_march_7_genus) <- otu_table_march_7_genus$Genus
 otu_table_march_7_genus$Genus <- NULL
 otu_table_march_7_genus <- as.data.frame(t(otu_table_march_7_genus))
 
-# Compute mean abundance
+#Calculate mean abundance
 mean_abundance_families <- colMeans(otu_table_march_7_family)
 mean_abundance_genera <- colMeans(otu_table_march_7_genus)
 
-# Align samples for envfit
+#Align samples for envfit
 shared_samples_family <- intersect(rownames(ordination_scores_march_7), rownames(otu_table_march_7_family))
 ordination_envfit_family <- ordination_scores_march_7[shared_samples_family, 1:2]
 otu_envfit_family <- otu_table_march_7_family[shared_samples_family, ]
@@ -1770,14 +1802,14 @@ shared_samples_genus <- intersect(rownames(ordination_scores_march_7), rownames(
 ordination_envfit_genus <- ordination_scores_march_7[shared_samples_genus, 1:2]
 otu_envfit_genus <- otu_table_march_7_genus[shared_samples_genus, ]
 
-# Remove non-variable families
+#Remove non-variable families
 otu_envfit_family <- otu_envfit_family[, apply(otu_envfit_family, 2, function(x) var(x, na.rm = TRUE) > 0)]
 
-# Remove non-variable genera
+#Remove non-variable genera
 otu_envfit_genus <- otu_envfit_genus[, apply(otu_envfit_genus, 2, function(x) var(x, na.rm = TRUE) > 0)]
 
 
-# Run envfit and extract significant taxa (Family)
+#Run envfit and extract significant taxa (family)
 set.seed(79)
 envfit_march_7_family <- envfit(ordination_envfit_family, otu_envfit_family, permutations = 999)
 sig_families_march_7 <- as.data.frame(envfit_march_7_family$vectors$arrows)
@@ -1788,7 +1820,7 @@ sig_families_march_7$mean_abundance <- mean_abundance_families[rownames(sig_fami
 sig_families_march_7 <- sig_families_march_7[order(-sig_families_march_7$mean_abundance), ]
 
 
-# Run envfit and extract significant taxa (Genus)
+#Run envfit and extract significant taxa (genus)
 set.seed(67)
 envfit_march_7_genus <- envfit(ordination_envfit_genus, otu_envfit_genus, permutations = 999)
 sig_genera_march_7 <- as.data.frame(envfit_march_7_genus$vectors$arrows)
@@ -1833,7 +1865,7 @@ biplot_march_7_family <- ggplot() +
     panel.border = element_rect(color = "black", fill = NA, linewidth = 1)
   )
 
-#genus biplot
+#Genus biplot
 biplot_march_7_genus <- ggplot() +
   geom_point(data = ordination_metadata_march_7, aes(x = Axis.1, y = Axis.2, color = plastic_group), size = 3) +
   geom_segment(data = vectors_df_march_7_genus, aes(x = 0, y = 0, xend = Axis.1, yend = Axis.2), 
@@ -1887,7 +1919,7 @@ ordination_metadata_march_23$plastic_group <- factor(ordination_metadata_march_2
                                                      levels = c("Elastollan", "Bioplastics"))
 
 
-# Process OTU and taxonomy at Family level
+#Process OTU and taxonomy at family level
 otu <- otu_table(march_23_phylo)
 if (taxa_are_rows(otu)) {
   otu <- t(otu)
@@ -1907,12 +1939,12 @@ otu_table_march_23_family <- otu_table_march_23_family[!is.na(otu_table_march_23
                                                        otu_table_march_23_family$Family != "", ]
 otu_table_march_23_family <- aggregate(. ~ Family, data = otu_table_march_23_family, FUN = sum)
 
-# Set Family as column names and transpose to sample × taxa for envfit
+#Set family as column names and transpose to sample × taxa for envfit
 rownames(otu_table_march_23_family) <- otu_table_march_23_family$Family
 otu_table_march_23_family$Family <- NULL
 otu_table_march_23_family <- as.data.frame(t(otu_table_march_23_family))
 
-# Process OTU and taxonomy at Genus level
+#Process OTU and taxonomy at genus level
 otu <- otu_table(march_23_phylo)
 if (taxa_are_rows(otu)) {
   otu <- t(otu)
@@ -1936,11 +1968,11 @@ rownames(otu_table_march_23_genus) <- otu_table_march_23_genus$Genus
 otu_table_march_23_genus$Genus <- NULL
 otu_table_march_23_genus <- as.data.frame(t(otu_table_march_23_genus))
 
-# Compute mean abundance
+#Calculate mean abundance
 mean_abundance_families <- colMeans(otu_table_march_23_family)
 mean_abundance_genera <- colMeans(otu_table_march_23_genus)
 
-# Align samples for envfit
+#Align samples for envfit
 shared_samples_family <- intersect(rownames(ordination_scores_march_23), rownames(otu_table_march_23_family))
 ordination_envfit_family <- ordination_scores_march_23[shared_samples_family, 1:2]
 otu_envfit_family <- otu_table_march_23_family[shared_samples_family, ]
@@ -1949,14 +1981,14 @@ shared_samples_genus <- intersect(rownames(ordination_scores_march_23), rownames
 ordination_envfit_genus <- ordination_scores_march_23[shared_samples_genus, 1:2]
 otu_envfit_genus <- otu_table_march_23_genus[shared_samples_genus, ]
 
-# Remove non-variable families
+#Remove non-variable families
 otu_envfit_family <- otu_envfit_family[, apply(otu_envfit_family, 2, function(x) var(x, na.rm = TRUE) > 0)]
 
-# Remove non-variable genera
+#Remove non-variable genera
 otu_envfit_genus <- otu_envfit_genus[, apply(otu_envfit_genus, 2, function(x) var(x, na.rm = TRUE) > 0)]
 
 
-# Run envfit and extract significant taxa (Family)
+#Run envfit and extract significant taxa (Family)
 set.seed(55)
 envfit_march_23_family <- envfit(ordination_envfit_family, otu_envfit_family, permutations = 999)
 sig_families_march_23 <- as.data.frame(envfit_march_23_family$vectors$arrows)
@@ -1967,7 +1999,7 @@ sig_families_march_23$mean_abundance <- mean_abundance_families[rownames(sig_fam
 sig_families_march_23 <- sig_families_march_23[order(-sig_families_march_23$mean_abundance), ]
 
 
-# Run envfit and extract significant taxa (Genus)
+#Run envfit and extract significant taxa (Genus)
 set.seed(66)
 envfit_march_23_genus <- envfit(ordination_envfit_genus, otu_envfit_genus, permutations = 999)
 sig_genera_march_23 <- as.data.frame(envfit_march_23_genus$vectors$arrows)
@@ -2012,7 +2044,7 @@ biplot_march_23_family <- ggplot() +
     panel.border = element_rect(color = "black", fill = NA, linewidth = 1)
   )
 
-#genus biplot
+#Genus biplot
 biplot_march_23_genus <- ggplot() +
   geom_point(data = ordination_metadata_march_23, aes(x = Axis.1, y = Axis.2, color = plastic_group), size = 3) +
   geom_segment(data = vectors_df_march_23_genus, aes(x = 0, y = 0, xend = Axis.1, yend = Axis.2), 
@@ -2065,7 +2097,7 @@ ordination_metadata_april_12$plastic_group <- ifelse(
 ordination_metadata_april_12$plastic_group <- factor(ordination_metadata_april_12$plastic_group, 
                                                      levels = c("Elastollan", "Bioplastics"))
 
-# Process OTU and taxonomy at Family level
+#Process OTU and taxonomy at family level
 otu <- otu_table(april_12_phylo)
 if (taxa_are_rows(otu)) {
   otu <- t(otu)
@@ -2085,12 +2117,12 @@ otu_table_april_12_family <- otu_table_april_12_family[!is.na(otu_table_april_12
                                                          otu_table_april_12_family$Family != "", ]
 otu_table_april_12_family <- aggregate(. ~ Family, data = otu_table_april_12_family, FUN = sum)
 
-# Set Family as column names and transpose to sample × taxa for envfit
+#Set family as column names and transpose to sample × taxa for envfit
 rownames(otu_table_april_12_family) <- otu_table_april_12_family$Family
 otu_table_april_12_family$Family <- NULL
 otu_table_april_12_family <- as.data.frame(t(otu_table_april_12_family))
 
-# Process OTU and taxonomy at Genus level
+#Process OTU and taxonomy at genus level
 otu <- otu_table(april_12_phylo)
 if (taxa_are_rows(otu)) {
   otu <- t(otu)
@@ -2114,11 +2146,11 @@ rownames(otu_table_april_12_genus) <- otu_table_april_12_genus$Genus
 otu_table_april_12_genus$Genus <- NULL
 otu_table_april_12_genus <- as.data.frame(t(otu_table_april_12_genus))
 
-# Compute mean abundance
+#Calculate mean abundance
 mean_abundance_families <- colMeans(otu_table_april_12_family)
 mean_abundance_genera <- colMeans(otu_table_april_12_genus)
 
-# Align samples for envfit
+#Align samples for envfit
 shared_samples_family <- intersect(rownames(ordination_scores_april_12), rownames(otu_table_april_12_family))
 ordination_envfit_family <- ordination_scores_april_12[shared_samples_family, 1:2]
 otu_envfit_family <- otu_table_april_12_family[shared_samples_family, ]
@@ -2127,14 +2159,14 @@ shared_samples_genus <- intersect(rownames(ordination_scores_april_12), rownames
 ordination_envfit_genus <- ordination_scores_april_12[shared_samples_genus, 1:2]
 otu_envfit_genus <- otu_table_april_12_genus[shared_samples_genus, ]
 
-# Remove non-variable families
+#Remove non-variable families
 otu_envfit_family <- otu_envfit_family[, apply(otu_envfit_family, 2, function(x) var(x, na.rm = TRUE) > 0)]
 
-# Remove non-variable genera
+#Remove non-variable genera
 otu_envfit_genus <- otu_envfit_genus[, apply(otu_envfit_genus, 2, function(x) var(x, na.rm = TRUE) > 0)]
 
 
-# Run envfit and extract significant taxa (Family)
+#Run envfit and extract significant taxa (Family)
 set.seed(33)
 envfit_april_12_family <- envfit(ordination_envfit_family, otu_envfit_family, permutations = 999)
 sig_families_april_12 <- as.data.frame(envfit_april_12_family$vectors$arrows)
@@ -2145,7 +2177,7 @@ sig_families_april_12$mean_abundance <- mean_abundance_families[rownames(sig_fam
 sig_families_april_12 <- sig_families_april_12[order(-sig_families_april_12$mean_abundance), ]
 print(sig_families_april_12)
 
-# Run envfit and extract significant taxa (Genus)
+#Run envfit and extract significant taxa (Genus)
 set.seed(34)
 envfit_april_12_genus <- envfit(ordination_envfit_genus, otu_envfit_genus, permutations = 999)
 sig_genera_april_12 <- as.data.frame(envfit_april_12_genus$vectors$arrows)
@@ -2229,7 +2261,7 @@ ordination_metadata_may_3$plastic_group <- ifelse(
 ordination_metadata_may_3$plastic_group <- factor(ordination_metadata_may_3$plastic_group, 
                                                   levels = c("Elastollan", "Bioplastics"))
 
-# Process OTU and taxonomy at Family level
+#Process OTU and taxonomy at family level
 otu <- otu_table(may_3_phylo)
 if (taxa_are_rows(otu)) {
   otu <- t(otu)
@@ -2249,12 +2281,12 @@ otu_table_may_3_family <- otu_table_may_3_family[!is.na(otu_table_may_3_family$F
                                                          otu_table_may_3_family$Family != "", ]
 otu_table_may_3_family <- aggregate(. ~ Family, data = otu_table_may_3_family, FUN = sum)
 
-# Set Family as column names and transpose to sample × taxa for envfit
+#Set family as column names and transpose to sample × taxa for envfit
 rownames(otu_table_may_3_family) <- otu_table_may_3_family$Family
 otu_table_may_3_family$Family <- NULL
 otu_table_may_3_family <- as.data.frame(t(otu_table_may_3_family))
 
-# Process OTU and taxonomy at Genus level
+#Process OTU and taxonomy at genus level
 otu <- otu_table(may_3_phylo)
 if (taxa_are_rows(otu)) {
   otu <- t(otu)
@@ -2278,11 +2310,11 @@ rownames(otu_table_may_3_genus) <- otu_table_may_3_genus$Genus
 otu_table_may_3_genus$Genus <- NULL
 otu_table_may_3_genus <- as.data.frame(t(otu_table_may_3_genus))
 
-# Compute mean abundance
+#Calculate mean abundance
 mean_abundance_families <- colMeans(otu_table_may_3_family)
 mean_abundance_genera <- colMeans(otu_table_may_3_genus)
 
-# Align samples for envfit
+#Align samples for envfit
 shared_samples_family <- intersect(rownames(ordination_scores_may_3), rownames(otu_table_may_3_family))
 ordination_envfit_family <- ordination_scores_may_3[shared_samples_family, 1:2]
 otu_envfit_family <- otu_table_may_3_family[shared_samples_family, ]
@@ -2291,14 +2323,14 @@ shared_samples_genus <- intersect(rownames(ordination_scores_may_3), rownames(ot
 ordination_envfit_genus <- ordination_scores_may_3[shared_samples_genus, 1:2]
 otu_envfit_genus <- otu_table_may_3_genus[shared_samples_genus, ]
 
-# Remove non-variable families
+#Remove non-variable families
 otu_envfit_family <- otu_envfit_family[, apply(otu_envfit_family, 2, function(x) var(x, na.rm = TRUE) > 0)]
 
-# Remove non-variable genera
+#Remove non-variable genera
 otu_envfit_genus <- otu_envfit_genus[, apply(otu_envfit_genus, 2, function(x) var(x, na.rm = TRUE) > 0)]
 
 
-# Run envfit and extract significant taxa (Family)
+#Run envfit and extract significant taxa (Family)
 set.seed(72)
 envfit_may_3_family <- envfit(ordination_envfit_family, otu_envfit_family, permutations = 999)
 sig_families_may_3 <- as.data.frame(envfit_may_3_family$vectors$arrows)
@@ -2309,7 +2341,7 @@ sig_families_may_3$mean_abundance <- mean_abundance_families[rownames(sig_famili
 sig_families_may_3 <- sig_families_may_3[order(-sig_families_may_3$mean_abundance), ]
 
 
-# Run envfit and extract significant taxa (Genus)
+#Run envfit and extract significant taxa (Genus)
 set.seed(73)
 envfit_may_3_genus <- envfit(ordination_envfit_genus, otu_envfit_genus, permutations = 999)
 sig_genera_may_3 <- as.data.frame(envfit_may_3_genus$vectors$arrows)
@@ -2373,7 +2405,7 @@ ordination_june_9 <- ordinate(june_9_phylo, method = "PCoA", distance = "wunifra
 ordination_scores_june_9 <- as.data.frame(ordination_june_9$vectors[, 1:2])
 ordination_scores_june_9$SampleID <- rownames(ordination_scores_june_9)
 
-#Extract metadata & merge with ordination scores  
+#Extract metadata and merge with ordination scores  
 meta_june_9 <- as(sample_data(june_9_phylo), "data.frame")  
 meta_june_9$SampleID <- rownames(meta_june_9)
 ordination_metadata_june_9 <- left_join(meta_june_9, ordination_scores_june_9, by = "SampleID")
@@ -2390,7 +2422,7 @@ ordination_metadata_june_9$plastic_group <- ifelse(
 ordination_metadata_june_9$plastic_group <- factor(ordination_metadata_june_9$plastic_group, 
                                                    levels = c("Elastollan", "Bioplastics"))
 
-# Process OTU and taxonomy at Family level
+#Process OTU and taxonomy at Family level
 otu <- otu_table(june_9_phylo)
 if (taxa_are_rows(otu)) {
   otu <- t(otu)
@@ -2410,12 +2442,12 @@ otu_table_june_9_family <- otu_table_june_9_family[!is.na(otu_table_june_9_famil
                                                          otu_table_june_9_family$Family != "", ]
 otu_table_june_9_family <- aggregate(. ~ Family, data = otu_table_june_9_family, FUN = sum)
 
-# Set Family as column names and transpose to sample × taxa for envfit
+#Set family as column names and transpose to sample × taxa for envfit
 rownames(otu_table_june_9_family) <- otu_table_june_9_family$Family
 otu_table_june_9_family$Family <- NULL
 otu_table_june_9_family <- as.data.frame(t(otu_table_june_9_family))
 
-# Process OTU and taxonomy at Genus level
+#Process OTU and taxonomy at genus level
 otu <- otu_table(june_9_phylo)
 if (taxa_are_rows(otu)) {
   otu <- t(otu)
@@ -2439,11 +2471,11 @@ rownames(otu_table_june_9_genus) <- otu_table_june_9_genus$Genus
 otu_table_june_9_genus$Genus <- NULL
 otu_table_june_9_genus <- as.data.frame(t(otu_table_june_9_genus))
 
-# Compute mean abundance
+#Calculate mean abundance
 mean_abundance_families <- colMeans(otu_table_june_9_family)
 mean_abundance_genera <- colMeans(otu_table_june_9_genus)
 
-# Align samples for envfit
+#Align samples for envfit
 shared_samples_family <- intersect(rownames(ordination_scores_june_9), rownames(otu_table_june_9_family))
 ordination_envfit_family <- ordination_scores_june_9[shared_samples_family, 1:2]
 otu_envfit_family <- otu_table_june_9_family[shared_samples_family, ]
@@ -2452,14 +2484,14 @@ shared_samples_genus <- intersect(rownames(ordination_scores_june_9), rownames(o
 ordination_envfit_genus <- ordination_scores_june_9[shared_samples_genus, 1:2]
 otu_envfit_genus <- otu_table_june_9_genus[shared_samples_genus, ]
 
-# Remove non-variable families
+#Remove non-variable families
 otu_envfit_family <- otu_envfit_family[, apply(otu_envfit_family, 2, function(x) var(x, na.rm = TRUE) > 0)]
 
-# Remove non-variable genera
+#Remove non-variable genera
 otu_envfit_genus <- otu_envfit_genus[, apply(otu_envfit_genus, 2, function(x) var(x, na.rm = TRUE) > 0)]
 
 
-# Run envfit and extract significant taxa (Family)
+#Run envfit and extract significant taxa (Family)
 set.seed(79)
 envfit_june_9_family <- envfit(ordination_envfit_family, otu_envfit_family, permutations = 999)
 sig_families_june_9 <- as.data.frame(envfit_june_9_family$vectors$arrows)
@@ -2470,7 +2502,7 @@ sig_families_june_9$mean_abundance <- mean_abundance_families[rownames(sig_famil
 sig_families_june_9 <- sig_families_june_9[order(-sig_families_june_9$mean_abundance), ]
 
 
-# Run envfit and extract significant taxa (Genus)
+#Run envfit and extract significant taxa (Genus)
 set.seed(80)
 envfit_june_9_genus <- envfit(ordination_envfit_genus, otu_envfit_genus, permutations = 999)
 sig_genera_june_9 <- as.data.frame(envfit_june_9_genus$vectors$arrows)
@@ -2523,21 +2555,21 @@ print(biplot_june_9_family)
 print(biplot_june_9_genus)
 
 
-#Family level
+#Print family level plots
 print(biplot_march_7_family)
 print(biplot_march_23_family)
 print(biplot_april_12_family)
 print(biplot_may_3_family)
 print(biplot_june_9_family)
 
-#Genus level
+#Print genus level plots
 print(biplot_march_7_genus)
 print(biplot_march_23_genus)
 print(biplot_april_12_genus)
 print(biplot_may_3_genus)
 print(biplot_june_9_genus)
 
-#Function to add family level vectors to an existing PCoA plot
+#Function to add family level vectors to original PCoA plot
 add_family_vectors <- function(pcoa_plot, vectors_df) {
   pcoa_plot + 
     geom_segment(
@@ -2567,9 +2599,9 @@ add_genus_vectors <- function(pcoa_plot, vectors_df) {
     ) +
     geom_text_repel(
       data = vectors_df, 
-      aes(x = Axis.1, y = Axis.2, label = Genus),  #Change family to genus
+      aes(x = Axis.1, y = Axis.2, label = Genus),  
       color = "black", size = 3, 
-      nudge_x = vectors_df$Axis.1 * 0.1,  #Shift text slightly away from arrows
+      nudge_x = vectors_df$Axis.1 * 0.1,  #Shift text away from arrows
       nudge_y = vectors_df$Axis.2 * 0.1,  
       max.overlaps = 15
     )
@@ -2582,12 +2614,12 @@ pcoa_plot_april_12_icon_family <- add_family_vectors(pcoa_plot_april_12_icon, ve
 pcoa_plot_may_3_icon_family <- add_family_vectors(pcoa_plot_may_3_icon, vectors_df_may_3_family)
 pcoa_plot_june_9_icon_family <- add_family_vectors(pcoa_plot_june_9_icon, vectors_df_june_9_family)
 
-#Display the updated plots, family
+#Print updated family plots
 print(pcoa_plot_march_7_icon_family)
 print(pcoa_plot_march_23_icon_family)
-print(pcoa_plot_april_12_icon_family)
-print(pcoa_plot_may_3_icon_family)
-print(pcoa_plot_june_9_icon_family)
+print(pcoa_plot_april_12_icon_family) #MANUSCRIPT Extended Data Fig. 1]
+print(pcoa_plot_may_3_icon_family) #MANUSCRIPT Extended Data Fig. 1]
+print(pcoa_plot_june_9_icon_family) #MANUSCRIPT Extended Data Fig. 1]
 
 #Print the list of each top 10
 top_10_families_march_7$Family
@@ -2603,26 +2635,27 @@ pcoa_plot_april_12_icon_genus <- add_genus_vectors(pcoa_plot_april_12_icon, vect
 pcoa_plot_may_3_icon_genus <- add_genus_vectors(pcoa_plot_may_3_icon, vectors_df_may_3_genus)
 pcoa_plot_june_9_icon_genus <- add_genus_vectors(pcoa_plot_june_9_icon, vectors_df_june_9_genus)
 
-#Display the updated plots, genus
+#Print updated genus plots
 print(pcoa_plot_march_7_icon_genus)
 print(pcoa_plot_march_23_icon_genus)
 print(pcoa_plot_april_12_icon_genus)
 print(pcoa_plot_may_3_icon_genus)
 print(pcoa_plot_june_9_icon_genus)
 
-###################################
 
-
+######################################
+###STOP##STOP##STOP###################
+######################################
 
 ####DESEq2 test - FOR JUNE 9####
-load.packages("DESeq2")
-load.packages("indicspecies")
-load.packages("ggrepel")
-load.packages("tibble")
-library(DESeq2)
-library(indicspecies)
-library(ggrepel)
-library(tibble)
+#load.packages("DESeq2")
+#load.packages("indicspecies")
+#load.packages("ggrepel")
+#load.packages("tibble")
+#library(DESeq2)
+#library(indicspecies)
+#library(ggrepel)
+#library(tibble)
 
 #Need to use raw data so need to recreate the subset data
 #Extract and align sample metadata
@@ -2662,7 +2695,7 @@ dds <- phyloseq_to_deseq2(june_9_phylo_filtered, ~ plastic_group)
 #Run DESeq2 analysis
 dds <- DESeq(dds)
 
-#Extract results (Bioplastics vs. Elastollan)
+#Pull out results (Bioplastics vs. Elastollan)
 res <- results(dds, contrast = c("plastic_group", "Bioplastics", "Elastollan"))
 
 #Order results by significance (padj)
@@ -2675,7 +2708,7 @@ res_df <- as.data.frame(res) %>%
 
 #Merge taxonomic information
 tax_table_june_9 <- as.data.frame(tax_table(june_9_phylo)) %>%
-  rownames_to_column(var = "ASV")  # Ensure ASVs are stored as a column
+  rownames_to_column(var = "ASV")  #Make sure ASVs are stored as a column
 
 #Merge DESeq2 results with taxonomy
 res_df <- left_join(res_df, tax_table_june_9, by = "ASV")
@@ -2688,13 +2721,14 @@ print(sig_taxa)
 
 cat("Number of significantly different taxa:", nrow(sig_taxa), "\n")
 
-sig_taxa <- as.data.frame(sig_taxa)  # Ensure it's a dataframe
+sig_taxa <- as.data.frame(sig_taxa)  #Mure sure it's a dataframe
 str(sig_taxa)
 sig_taxa %>%
   mutate(Direction = ifelse(log2FoldChange > 0, "Bioplastics", "Elastollan")) %>%
   group_by(Direction) %>%
   summarise(Count = n())
 
+#Print sig_taxa
 print(sig_taxa$Family)
 
 ggplot(res_df, aes(x = log2FoldChange, y = -log10(padj))) +
@@ -2706,7 +2740,7 @@ ggplot(res_df, aes(x = log2FoldChange, y = -log10(padj))) +
        y = "-log10 Adjusted p-value") +
   theme_minimal()
 
-top_taxa <- sig_taxa %>% arrange(padj) %>% head(15)  # Select top 15
+top_taxa <- sig_taxa %>% arrange(padj) %>% head(15)  #Select top 15
 print(top_taxa$Family)
 
 ggplot(top_taxa, aes(x = reorder(Family, log2FoldChange), y = log2FoldChange, fill = log2FoldChange > 0)) +
@@ -2721,13 +2755,13 @@ ggplot(top_taxa, aes(x = reorder(Family, log2FoldChange), y = log2FoldChange, fi
 
 
 
-####DESEq2 test # FOR May 3####
+####DESEq2 test #### For May 3 ####
 #Extract and align sample metadata
 sample_meta_df <- as.data.frame(BioPlastics_phylo@sam_data)
 sample_meta_df <- sample_meta_df[sample_names(BioPlasticsASVtable1), ]
 
 #Add plastic_group from ordination metadata
-#Set SampleID as rownames so we can match correctly
+#Set SampleID as rownames so it can match correctly
 rownames(ordination_metadata_may_3) <- ordination_metadata_may_3$SampleID
 
 #Reassign plastic_group now that rownames are aligned
@@ -2744,7 +2778,7 @@ phylo_raw_may3 <- phyloseq(
   phy_tree(BioPlastics_phylo@phy_tree)
 )
 
-#Subset to May 3 samples
+#Subset for May 3 samples
 may_3_phylo <- subset_samples(phylo_raw_may3, date == "May_3")
 
 #Check that plastic_group is correctly assigned
@@ -2759,7 +2793,7 @@ dds <- phyloseq_to_deseq2(may_3_phylo_filtered, ~ plastic_group)
 #Run DESeq2 analysis
 dds <- DESeq(dds)
 
-#Extract results (Bioplastics vs. Elastollan)
+#Pull out results (Bioplastics vs. Elastollan)
 res <- results(dds, contrast = c("plastic_group", "Bioplastics", "Elastollan"))
 
 #Order results by significance (padj)
@@ -2772,7 +2806,7 @@ res_df <- as.data.frame(res) %>%
 
 #Merge taxonomic information
 tax_table_may_3 <- as.data.frame(tax_table(may_3_phylo)) %>%
-  rownames_to_column(var = "ASV")  # Ensure ASVs are stored as a column
+  rownames_to_column(var = "ASV")  #Make sure ASVs are stored as a column
 
 #Merge DESeq2 results with taxonomy
 res_df <- left_join(res_df, tax_table_may_3, by = "ASV")
@@ -2817,7 +2851,7 @@ ggplot(top_taxa, aes(x = reorder(Family, log2FoldChange), y = log2FoldChange, fi
   theme_minimal()
 
 
-####DESEq2 test # FOR April 12####
+####DESEq2 test #### For April 12 ####
 #Extract and align sample metadata
 sample_meta_df <- as.data.frame(BioPlastics_phylo@sam_data)
 sample_meta_df <- sample_meta_df[sample_names(BioPlasticsASVtable1), ]
@@ -2855,7 +2889,7 @@ dds <- phyloseq_to_deseq2(april_12_phylo_filtered, ~ plastic_group)
 #Run DESeq2 analysis
 dds <- DESeq(dds)
 
-#Extract results (Bioplastics vs. Elastollan)
+#Pull out results (Bioplastics vs. Elastollan)
 res <- results(dds, contrast = c("plastic_group", "Bioplastics", "Elastollan"))
 
 #Order results by significance (padj)
@@ -2913,28 +2947,24 @@ ggplot(top_taxa, aes(x = reorder(Family, log2FoldChange), y = log2FoldChange, fi
   theme_minimal()
 
 
+######################################
+###STOP##STOP##STOP###################
+######################################
 
 
 
+####Richness over time#######
 
-
-
-
-
-
-
-
-####Richness over time. 
-# 1. Estimate richness (observed ASVs, Shannon, etc.)
+#Estimate richness (observed ASVs, Shannon)
 richness_df <- estimate_richness(BioPlastics_phylo, measures = c("Observed", "Shannon"))
 
-# 2. Add sample metadata
+#Add sample metadata
 richness_df <- cbind(richness_df, sample_data(BioPlastics_phylo))
 
-# 3. Optional: adjust plastic_conc to factor for ordering
+#Adjust plastic_conc to factor for ordering
 richness_df$plastic_conc <- factor(richness_df$plastic_conc, levels = sort(unique(richness_df$plastic_conc)))
 
-# 4. Create boxplot
+#Create boxplot
 richness_plot <- ggplot(richness_df, aes(x = date, y = Observed, fill = plastic_type)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
   geom_jitter(aes(color = plastic_type), width = 0.2, size = 2, alpha = 0.7) +
@@ -2957,7 +2987,7 @@ richness_plot <- ggplot(richness_df, aes(x = date, y = Observed, fill = plastic_
   ) +
   guides(fill = guide_legend(ncol = 3))
 
-# 5. Print
+#Print plot
 print(richness_plot)
 
 dot_plot <- ggplot(richness_df, aes(x = plastic_conc, y = Observed, color = plastic_type)) +
@@ -2971,16 +3001,17 @@ dot_plot <- ggplot(richness_df, aes(x = plastic_conc, y = Observed, color = plas
     legend.position = "bottom"
   )
 
+#Print plot
 print(dot_plot)
 
 
-# Make sure date is in correct order
+#Make sure date is in correct order
 richness_df$date <- factor(richness_df$date, levels = c("March_7", "March_23", "April_12", "May_3", "June_9"))
 
-# Order concentration for display (optional: numeric or factor levels)
+#Order concentration for display (numeric or factor levels)
 richness_df$plastic_conc <- factor(richness_df$plastic_conc, levels = sort(unique(richness_df$plastic_conc)))
 
-# Plot
+#Plot
 heatmap_plot <- ggplot(richness_df, aes(x = date, y = plastic_conc, fill = Observed)) +
   geom_tile(color = "white", linewidth = 0.5) +
   geom_text(aes(label = round(Observed, 1)), color = "black", size = 3) +
@@ -3004,17 +3035,15 @@ print(heatmap_plot)
 
 
 
+######################################
+###STOP##STOP##STOP###################
+######################################
 
-
-
-
-
-###STOP##
-#Load necessary packages
-install.packages("indicspecies")
-BiocManager::install("DESeq2")
-library(indicspecies)
-library(DESeq2)
+#Load in packages
+#install.packages("indicspecies")
+#BiocManager::install("DESeq2")
+#library(indicspecies)
+#library(DESeq2)
 
 
 #### Phylum level analysis for 16S ####
@@ -3358,9 +3387,9 @@ if (!is.null(sig_family_16S) && nrow(sig_family_16S[sig_family_16S$effect == "pl
 }
 
 #######################################
-#####Filter low count features#####
-#### Filtering low count features ####
-#Define a threshold for filtering
+#####Filter low count features#########
+
+#Define a threshold for filtering#
 count_threshold <- 10  #Minimum count across all samples
 
 #Filter significant results to remove low count ASVs

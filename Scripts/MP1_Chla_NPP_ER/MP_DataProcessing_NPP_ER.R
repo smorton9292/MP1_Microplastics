@@ -1,3 +1,5 @@
+#This R script runs the NPP/ER analysis and figure creation
+
 rm(list = ls())
 
 setwd("C:/Users/DELL/Documents/R/projects/MP1_CHLA_NPP_ER")
@@ -23,6 +25,8 @@ install.packages("car")
 install.packages("readr")
 install.packages("gtable")
 install.packages("grid")
+install.packages("cowplot")
+
 library(reshape2)
 library(emmeans)
 library(dplyr)
@@ -428,16 +432,16 @@ Csummary_data_contour$plastic_conc <- as.numeric(Csummary_data_contour$plastic_c
 
 #Get date without year
 ###For A###
-Asummary_data_contour <- select(Asummary_data_contour, -date_without_year)
-Asummary_data_contour <- select(Asummary_data_contour, -date)
+Asummary_data_contour <- dplyr::select(Asummary_data_contour, -date_without_year)
+Asummary_data_contour <- dplyr::select(Asummary_data_contour, -date)
 
 ###For B###
-Bsummary_data_contour <- select(Bsummary_data_contour, -date_without_year)
-Bsummary_data_contour <- select(Bsummary_data_contour, -date)
+Bsummary_data_contour <- dplyr::select(Bsummary_data_contour, -date_without_year)
+Bsummary_data_contour <- dplyr::select(Bsummary_data_contour, -date)
 
 ###For C
-Csummary_data_contour <- select(Csummary_data_contour, -date_without_year)
-Csummary_data_contour <- select(Csummary_data_contour, -date)
+Csummary_data_contour <- dplyr::select(Csummary_data_contour, -date_without_year)
+Csummary_data_contour <- dplyr::select(Csummary_data_contour, -date)
 
 ###For A###
 #All combinations of date_num and plastic_conc
@@ -470,6 +474,11 @@ if (nrow(Amissing_combinations) > 0) {
 
 #Add a pseudocount of 0.001 to treatment concentrations
 Asummary_data_contour$plastic_conc_pseudocount <- Asummary_data_contour$plastic_conc + 0.009
+#Add a pseudocount of 0.001 to treatment concentrations
+Bsummary_data_contour$plastic_conc_pseudocount <- Bsummary_data_contour$plastic_conc + 0.009
+#Add a pseudocount of 0.001 to treatment concentrations
+Csummary_data_contour$plastic_conc_pseudocount <- Csummary_data_contour$plastic_conc + 0.009
+
 
 #Asummary_data_contour
 ggplot(Asummary_data_contour, aes(x = date_num, y = plastic_conc_pseudocount, fill = Mean)) +
@@ -1221,7 +1230,7 @@ avg_plot_interp_no_contours_CNPP <- ggplot(interp_df, aes(x = date_num, y = 10^p
 
 print(avg_plot_interp_no_contours_CNPP)
 
-#Trim he edges so it is just within our data range
+#Trim the edges so it is just within our data range
 #Determine the limits based on the data range
 x_limits <- range(interp_df$date_num, na.rm = TRUE)
 y_limits <- range(10^interp_df$plastic_conc_pseudocount, na.rm = TRUE)
@@ -1377,7 +1386,7 @@ combined_plot <- avg_plot_interp_no_contours_ANPP +
 #Add overall title
 final_combined_plot <- combined_plot
 
-#Display final combined plot ### NPP data for MANUSCRIPT [Figure S]
+#Display final combined plot ### NPP data for MANUSCRIPT [Supplementary Fig. 1]
 print(final_combined_plot)
 ####Removed rows come from interpolation outside of measured values
 
@@ -1441,7 +1450,7 @@ table(npp_data$plastic_type)
 #Fix the non-normal data issue by setting family distribution (Not this one)
 gam_model5 <- gam(NPP ~ s(plastic_conc, by = plastic_type) + s(date_num, by = plastic_type) + plastic_type, family = Gamma(link = "log"), data = npp_data)
 summary(gam_model5)
-plot(gam_model5)
+#plot(gam_model5)
 check_result5 <- gam.check(gam_model5)
 
 #Fix the non-normal data issue by transforming the data (This one is best)
@@ -1459,7 +1468,7 @@ check_result_adjusted <- gam.check(gam_model_adjusted)
 #Fit the GAM model (Not this one)
 gam_model6 <- gam(NPP ~ s(plastic_conc, by = plastic_type) + s(date_num, by = plastic_type) + plastic_type, data = npp_data)
 summary(gam_model6)
-plot(gam_model6)
+#plot(gam_model6)
 check_result6 <- gam.check(gam_model6)
 
 
@@ -1516,11 +1525,11 @@ NPPgam_model4 <- gam(I(log(NPP + 1)) ~ s(date_num, by = plastic_type) + s(plasti
 
 #Compare models using AIC
 NPPmodel_comparison <- AIC(NPPgam_model1, NPPgam_model2, NPPgam_model3, NPPgam_model4)
-print(NPPmodel_comparison) ###NPP data used for MANUSCRIPT [TABLE S1]
+print(NPPmodel_comparison) ###NPP data used for MANUSCRIPT [Extended Data Table 1]
 
 #Check diagnostics for the best model
 NPPbest_model <- NPPgam_model4
-summary(NPPbest_model) ###NPP data used for MANUSCRIPT [Table S2]
+summary(NPPbest_model) ###NPP data used for MANUSCRIPT [Extended Data Table 2]
 gam.check(NPPbest_model)
 plot(NPPbest_model, pages = 1)
 
@@ -1598,7 +1607,7 @@ print(npp_diff_BC_date)
 print(npp_diff_AB_conc)
 print(npp_diff_AC_conc)
 print(npp_diff_BC_conc)
-### NPP data used for MANUSCRIPT [Figure S10]
+### NPP data used for MANUSCRIPT [Supplementary Fig. 10]
 
 
 
@@ -1726,18 +1735,18 @@ Csummary_data_contour_ER$plastic_conc <- as.numeric(Csummary_data_contour_ER$pla
 
 #Get date without year
 ###For A###
-Asummary_data_contour_ER <- select(Asummary_data_contour_ER, -date_without_year)
-Asummary_data_contour_ER <- select(Asummary_data_contour_ER, -date)
+Asummary_data_contour_ER <- dplyr::select(Asummary_data_contour_ER, -date_without_year)
+Asummary_data_contour_ER <- dplyr::select(Asummary_data_contour_ER, -date)
 
 ###For B###
-Bsummary_data_contour_ER <- select(Bsummary_data_contour_ER, -date_without_year)
-Bsummary_data_contour_ER <- select(Bsummary_data_contour_ER, -date)
+Bsummary_data_contour_ER <- dplyr::select(Bsummary_data_contour_ER, -date_without_year)
+Bsummary_data_contour_ER <- dplyr::select(Bsummary_data_contour_ER, -date)
 
 ###For C###
-Csummary_data_contour_ER <- select(Csummary_data_contour_ER, -date_without_year)
-Csummary_data_contour_ER <- select(Csummary_data_contour_ER, -date)
+Csummary_data_contour_ER <- dplyr::select(Csummary_data_contour_ER, -date_without_year)
+Csummary_data_contour_ER <- dplyr::select(Csummary_data_contour_ER, -date)
 
-##For A drop row 78 as it is a true and confirmed error in the sensor prob reading##
+##For (A) drop row 78 as it is a true and confirmed error in the sensor prob reading##
 #Remove row 78 from Asummary_data_contour_ER
 Asummary_data_contour_ER <- Asummary_data_contour_ER[-78, ]
 
@@ -2657,7 +2666,7 @@ combined_ER_plot <- avg_plot_interp_no_contours_AER +
 final_combined_ER_plot <- combined_ER_plot
 
 #Display final combined ER plot
-print(final_combined_ER_plot) ### ER data used for MANUSCRIPT [FIGURE S2]
+print(final_combined_ER_plot) ### ER data used for MANUSCRIPT [Supplementary Fig. 2]
 
 
 
@@ -2719,51 +2728,53 @@ acf(er_data$date_num)
 table(er_data$plastic_type)
 
 #Fix the non-normal data issue by setting family distribution (Not this one)
-gam_model5 <- gam(ER ~ s(plastic_conc, by = plastic_type) + s(date_num, by = plastic_type) + plastic_type, family = Gamma(link = "log"), data = er_data)
-summary(gam_model5)
-plot(gam_model5)
-check_result5 <- gam.check(gam_model5)
+#gam_model5 <- gam(ER ~ s(plastic_conc, by = plastic_type) + s(date_num, by = plastic_type) + plastic_type, family = Gamma(link = "log"), data = er_data)
+#summary(gam_model5)
+#plot(gam_model5)
+#check_result5 <- gam.check(gam_model5)
+
+#min(er_data$ER, na.rm = TRUE)
 
 #Fix the non-normal data issue by transforming the data (This one is best)
-gam_model_transformed <- gam(I(log(ER + 1)) ~ s(plastic_conc, by = plastic_type) + s(date_num, by = plastic_type) + plastic_type, data = er_data)
-summary(gam_model_transformed)
-check_result_transformed <- gam.check(gam_model_transformed)
+#gam_model_transformed <- gam(I(log(ER + 94)) ~ s(plastic_conc, by = plastic_type) + s(date_num, by = plastic_type) + plastic_type, data = er_data)
+#summary(gam_model_transformed)
+#check_result_transformed <- gam.check(gam_model_transformed)
 
 #From gam.check we should increase the k (Not this One)
-gam_model_adjusted <- gam(I(log(ER + 1)) ~ s(plastic_conc, by = plastic_type, k = 10) + 
-                            s(date_num, by = plastic_type, k = 10) + plastic_type, 
-                          data = er_data)
-summary(gam_model_adjusted)
-check_result_adjusted <- gam.check(gam_model_adjusted)
+#gam_model_adjusted <- gam(I(log(ER + 94)) ~ s(plastic_conc, by = plastic_type, k = 10) + 
+                            #s(date_num, by = plastic_type, k = 10) + plastic_type, 
+                          #data = er_data)
+#summary(gam_model_adjusted)
+#check_result_adjusted <- gam.check(gam_model_adjusted)
 
 #Fit the GAM model (Not this one)
-gam_model6 <- gam(ER ~ s(plastic_conc, by = plastic_type) + s(date_num, by = plastic_type) + plastic_type, data = er_data)
-summary(gam_model6)
-plot(gam_model6)
+#gam_model6 <- gam(ER ~ s(plastic_conc, by = plastic_type) + s(date_num, by = plastic_type) + plastic_type, data = er_data)
+#summary(gam_model6)
+#plot(gam_model6)
 #Check GAM model
-check_result6 <- gam.check(gam_model6)
-plot(check_result6)
+#check_result6 <- gam.check(gam_model6)
+#plot(check_result6)
 
 #Compare models
-summary(gam_model_transformed)
-gam.check(gam_model_transformed)
+#summary(gam_model_transformed)
+#gam.check(gam_model_transformed)
 
-summary(gam_model_adjusted)
-gam.check(gam_model_adjusted)
+#summary(gam_model_adjusted)
+#gam.check(gam_model_adjusted)
 
-summary(gam_model6)
-gam.check(gam_model6)
+#summary(gam_model6)
+#gam.check(gam_model6)
 
-summary(gam_model5)
-gam.check(gam_model5)
+#summary(gam_model5)
+#gam.check(gam_model5)
 
 #Compare AIC values
-AIC(gam_model_transformed, gam_model_adjusted, gam_model6, gam_model5)
+#AIC(gam_model_transformed, gam_model_adjusted, gam_model6, gam_model5)
 
 #Visualize smooths
-par(mfrow = c(1, 2)) 
-plot(gam_model_transformed, pages = 1)
-plot(gam_model_adjusted, pages = 1)
+#par(mfrow = c(1, 2)) 
+#plot(gam_model_transformed, pages = 1)
+#plot(gam_model_adjusted, pages = 1)
 
 
 #New column for absolute value of ER
@@ -2794,11 +2805,11 @@ ERgam_model4 <- gam(I(log(ER_abs + 1)) ~
 
 #Compare models with AIC
 ERmodel_comparison <- AIC(ERgam_model1, ERgam_model2, ERgam_model3, ERgam_model4)
-print(ERmodel_comparison) ### ER data used for MANUSCRIPT [Table S1]
+print(ERmodel_comparison) ### ER data used for MANUSCRIPT [Extended Data Table 1]
 
 #Check diagnostics for best model
 ERbest_model <- ERgam_model4
-summary(ERbest_model) ### ER data used for MANUSCRIPT [Table S2]
+summary(ERbest_model) ### ER data used for MANUSCRIPT [Extended Data Table 2]
 gam.check(ERbest_model)
 plot(ERbest_model, pages = 1)
 
@@ -2870,4 +2881,4 @@ print(er_diff_BC_date)
 print(er_diff_AB_conc)
 print(er_diff_AC_conc)
 print(er_diff_BC_conc)
-### ER data used for MANUSCRIPT [Figure S11]
+### ER data used for MANUSCRIPT [Supplementary Fig. 11]

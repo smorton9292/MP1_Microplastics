@@ -1,10 +1,13 @@
+#This R script runs the analysis and figure creation for zooplankton data
+#Lines beginning with (#) were not in the final script
+
 #Clear if need
 rm(list = ls())
 
 setwd("C:/Users/DELL/Documents/R/projects/MP1_Zoop")
 data<-read.csv("MP Zooplankton Counts - zoop_counts.csv")
 
-#Install additional packages
+#Install packages
 install.packages("dplyr")
 install.packages("ggplot2")
 install.packages("tidyverse")
@@ -28,9 +31,9 @@ install.packages("glmmTMB")
 install.packages("kableExtra")
 install.packages("knitr")
 install.packages("emmeans")
-install.packages("patchwork")
+install.packages("purrr")
 
-update.packages(ask = FALSE)
+
 library(dplyr)
 library(ggplot2)
 library(tidyverse)
@@ -46,6 +49,14 @@ library(mgcv)
 library(RVAideMemoire)
 library(car)
 library(viridisLite)
+library(margins)
+library(MASS)
+library(ggeffects)
+library(glmmTMB)
+library(kableExtra)
+library(knitr)
+library(emmeans)
+library(purrr)
 
 
 
@@ -472,7 +483,7 @@ c.plot.new.custom <- ggplot(filtered_data, aes(x = sample.period, y = (log((Coun
   )
 
 #Display the plot
-c.plot.new.custom ### Zoop data for MANUSCRIPT [Figure S4]
+c.plot.new.custom ### Zoop data for MANUSCRIPT [Supplementary Figure 4]
 #Warning is zero counts
 
 #taxa counts
@@ -539,17 +550,6 @@ abundance_counts3 <- abundance_counts3 %>%
     Taxa== "cladoceran" ~ "organism"))%>%
   mutate(sample.period = "6")
 
-
-############Library additional packages for next set of code############
-library(knitr)
-library(kableExtra)
-library(glmmTMB)
-library(ggeffects)
-library(margins)
-library(mgcv)
-library(MASS)
-library(emmeans)
-library(patchwork)
 
 #combine the abundances
 Total_abundance0 <- bind_rows(abundance_counts, abundance_counts1, abundance_counts2, abundance_counts3)
@@ -673,7 +673,7 @@ Total_abundance0<- Total_abundance0 %>% mutate(concentration = case_when(
 
 
 
-#LOG TRANS CONCENTRATION
+#LOG trans conc
 Total_abundance0$log.con<-Total_abundance0$tank.id
 
 Total_abundance0<- Total_abundance0 %>% mutate(log.con = case_when(
@@ -793,7 +793,7 @@ Total_abundance1<- Total_abundance1 %>% mutate(concentration = case_when(
 
 
 
-#LOG TRANS CONCENTRATION
+#LOG trans conc
 Total_abundance1$log.con<-Total_abundance1$tank.id
 
 Total_abundance1<- Total_abundance1 %>% mutate(log.con = case_when(
@@ -833,7 +833,7 @@ Total_abundance1<- Total_abundance1 %>% mutate(log.con = case_when(
 
 #LOG trans above
 Total_abundance1$log.con<-as.numeric(Total_abundance1$log.con)
-Total_abundance1$log.con<-log(Total_abundance1$log.con+.002)#THIS IS TAKING THE LN!!! IF YOU WANT LOG10 YOU NEED TO SPECIFY LOG10
+Total_abundance1$log.con<-log(Total_abundance1$log.con+.002) #This is the ln
 unique(Total_abundance1$log.con)
 
 hist(Total_abundance1$log.con)
@@ -912,7 +912,7 @@ Total_abundance4<- Total_abundance4 %>% mutate(concentration = case_when(
 
 
 
-#LOG TRANS CONCENTRATION
+#LOG trans conc
 Total_abundance4$log.con<-Total_abundance4$tank.id
 
 Total_abundance4<- Total_abundance4 %>% mutate(log.con = case_when(
@@ -950,9 +950,9 @@ Total_abundance4<- Total_abundance4 %>% mutate(log.con = case_when(
 
 
 
-#LOG TRANS ABOVE!!!!
+#LOG trans above
 Total_abundance4$log.con<-as.numeric(Total_abundance4$log.con)
-Total_abundance4$log.con<-log(Total_abundance4$log.con+.002)#THIS IS TAKING THE LN!!! IF YOU WANT LOG10 YOU NEED TO SPECIFY LOG10
+Total_abundance4$log.con<-log(Total_abundance4$log.con+.002) #This is the ln
 unique(Total_abundance4$log.con)
 
 hist(Total_abundance4$log.con)
@@ -1031,7 +1031,7 @@ Total_abundance5<- Total_abundance5 %>% mutate(concentration = case_when(
 
 
 
-#LOG TRANS CONCENTRATION
+#LOG trans conc
 Total_abundance5$log.con<-Total_abundance5$tank.id
 
 Total_abundance5<- Total_abundance5 %>% mutate(log.con = case_when(
@@ -1071,7 +1071,7 @@ Total_abundance5<- Total_abundance5 %>% mutate(log.con = case_when(
 
 #LOG trans above
 Total_abundance5$log.con<-as.numeric(Total_abundance5$log.con)
-Total_abundance5$log.con<-log(Total_abundance5$log.con+.002)#THIS IS TAKING THE LN!!! IF YOU WANT LOG10 YOU NEED TO SPECIFY LOG10
+Total_abundance5$log.con<-log(Total_abundance5$log.con+.002) #This is the ln
 unique(Total_abundance5$log.con)
 
 hist(Total_abundance5$log.con)
@@ -1151,7 +1151,7 @@ Total_abundance6<- Total_abundance6 %>% mutate(concentration = case_when(
 
 
 
-#LOG TRANS CONCENTRATION
+#LOG trans conc
 Total_abundance6$log.con<-Total_abundance6$tank.id
 
 Total_abundance6<- Total_abundance6 %>% mutate(log.con = case_when(
@@ -1191,13 +1191,13 @@ Total_abundance6<- Total_abundance6 %>% mutate(log.con = case_when(
 
 #LOG trans above
 Total_abundance6$log.con<-as.numeric(Total_abundance6$log.con)
-Total_abundance6$log.con<-log(Total_abundance6$log.con+.002)#THIS IS TAKING THE LN!!! IF YOU WANT LOG10 YOU NEED TO SPECIFY LOG10
+Total_abundance6$log.con<-log(Total_abundance6$log.con+.002) #This is taking the ln
 unique(Total_abundance6$log.con)
 
 hist(Total_abundance6$log.con)
 
 
-#factoring 
+#Factoring 
 Total_abundance0$plastic_type<-as.factor(Total_abundance0$plastic_type)
 Total_abundance0$concentration<- as.numeric(Total_abundance0$concentration)
 Total_abundance0$log.con<-as.numeric(Total_abundance0$log.con)
@@ -1227,7 +1227,7 @@ Total_abundance6$log.con<- as.numeric(Total_abundance6$log.con)
 
 
 
-#distribution
+#Distribution
 
 hist(Total_abundance$Count, main= "Histogram of Zooplankton Counts From All Samples", xlab="Number of Zooplankton", ylab="Frequency")
 hist(Total_abundance1$Count, main= "Histogram of Zooplankton Count From Day 0", xlab="Number of Zooplankton", ylab="Frequency")
@@ -1246,7 +1246,7 @@ test3.run.t1<- gam(count.per.l~ s(log.con), data=Total_abundance1, method= 'REML
 test.run4.t1<- gam(count.per.l~ plastic_type+s(log.con), data=Total_abundance1, method= 'REML', family = Gamma(link='log')) 
 
 
-AIC(test.run.t1,test2.run.t1,test3.run.t1,test.run4.t1) #Abundance data used for MANUSCRIPT [Table S3] this is time point 0
+AIC(test.run.t1,test2.run.t1,test3.run.t1,test.run4.t1) #Abundance data used for MANUSCRIPT [Extended Data Table 3] this is time point 0
 plot(test.run.t1, all.terms = TRUE, page=1)
 plot(test2.run.t1, all.terms = TRUE, page=1) 
 
@@ -1264,7 +1264,7 @@ test3.run.t4<- gam(count.per.l~ s(concentration), data=Total_abundance4, method=
 test4.run.t4<- gam(count.per.l~ plastic_type+s(concentration), data=Total_abundance4, method= 'REML', family = Gamma(link='log'))
 summary(test.run.t4)
 
-AIC(test.run.t4,test2.run.t4,test3.run.t4,test4.run.t4) #Abundance data used for MANUSCRIPT [Table S3]
+AIC(test.run.t4,test2.run.t4,test3.run.t4,test4.run.t4) #Abundance data used for MANUSCRIPT [Extended Data Table 3]
 plot(test.run.t4, all.terms = TRUE, page=1)
 plot(test4.run.t4, all.terms = TRUE, page=1)
 
@@ -1280,7 +1280,7 @@ test2.run.t5<- gam(count.per.l~ s(concentration, by=plastic_type), data=Total_ab
 test3.run.t5<- gam(count.per.l~ s(concentration), data=Total_abundance5, method= 'REML', family = Gamma(link='log')) 
 test4.run.t5<- gam(count.per.l~ plastic_type+s(concentration), data=Total_abundance5, method= 'REML', family = Gamma(link='log')) 
 
-AIC(test.run.t5,test2.run.t5,test3.run.t5,test4.run.t5) #Abundance data used for MANUSCRIPT [Table S3]
+AIC(test.run.t5,test2.run.t5,test3.run.t5,test4.run.t5) #Abundance data used for MANUSCRIPT [Extended Data Table 3]
 plot(test.run.t5, all.terms = TRUE, page=1)
 plot(test2.run.t5, all.terms = TRUE, page=1)
 plot(test3.run.t5, all.terms = TRUE, page=1)
@@ -1298,7 +1298,7 @@ test3.run.t6<- gam(count.per.l~ s(concentration), data=Total_abundance6, method=
 test4.run.t6<- gam(count.per.l~ plastic_type+s(log.con), data=Total_abundance6, method= 'REML', family = Gamma(link='log')) 
 
 
-AIC(test.run.t6,test2.run.t6,test3.run.t6,test4.run.t6) #Abundance data used for MANUSCRIPT [Table S3]
+AIC(test.run.t6,test2.run.t6,test3.run.t6,test4.run.t6) #Abundance data used for MANUSCRIPT [Extended Data Table 3]
 plot(test.run.t6, all.terms = TRUE, page=1)
 plot(test2.run.t6, all.terms = TRUE, page=1)
 plot(test3.run.t6, all.terms = TRUE, page=1)
@@ -1343,10 +1343,10 @@ print(gam.t4)
 print(gam.t5)
 print(gam.t6)
 
-summary(gam.t1) ### Abundance data used for MANUSCRIPT [Table S4]
-summary(gam.t4) ### Abundance data used for MANUSCRIPT [Table S4]
-summary(gam.t5) ### Abundance data used for MANUSCRIPT [Table S4]
-summary(gam.t6) ### Abundance data used for MANUSCRIPT [Table S4]
+summary(gam.t1) ### Abundance data used for MANUSCRIPT [Extended Data Table 4]
+summary(gam.t4) ### Abundance data used for MANUSCRIPT [Extended Data Table 4]
+summary(gam.t5) ### Abundance data used for MANUSCRIPT [Extended Data Table 4]
+summary(gam.t6) ### Abundance data used for MANUSCRIPT [Extended Data Table 4]
 
 anova.gam(gam.t1)
 anova.gam(gam.t4)
@@ -1369,10 +1369,10 @@ gam.check(gam.t4)
 gam.check(gam.t5)
 gam.check(gam.t6)
 
-#setting concentrations to look at (every concentration)
+#Setting concentrations to look at (every concentration)
 log_con_levels <- c(-0.9493306,-1.5050779,-2.0557250,-2.6036902,-3.1465552, -3.6888795,-4.1997051, -4.6051702, -5.1159958, -6.2146081)
 
-# Calculate pairwise comparisons for each model
+#Calculate pairwise comparisons for each model
 ###Best pairwise comparisons for data
 pw1 <- emmeans(gam.t1, ~ log.con, at = list(log.con = log_con_levels))
 pw4 <- emmeans(gam.t4, ~ plastic_type | log.con, at = list(log.con = log_con_levels))
@@ -1391,10 +1391,10 @@ table4<-kable(pw4c)
 table5<-kable(pw5c)
 table6<-kable(pw6c)
 
-view(pw1c)
-view(pw4c)
-view(pw5c)
-view(pw6c)
+#view(pw1c)
+#view(pw4c)
+#view(pw5c)
+#view(pw6c)
 
 #######################################################
 ###############Adding Summary Table Creation###########
@@ -1441,7 +1441,7 @@ finished_summarytable <- full_summarytable %>%
     p_value = round(p.value, 4),
     Significant = ifelse(p.value < 0.05, "Yes", "No")
   ) %>%
-  dplyr::select(   # <--- IMPORTANT: Force dplyr::select
+  dplyr::select(   #Force dplyr::select
     sampling_day,
     plastic_concentration,
     Comparison,
@@ -1454,10 +1454,7 @@ finished_summarytable <- full_summarytable %>%
 
 #View the final table
 kable(finished_summarytable)
-view(finished_summarytable)
-
-#Export to CSV
-#write.csv(finished_summarytable, "zooplankton_pairwise_comparisons_final.csv", row.names = FALSE)
+#view(finished_summarytable)
 
 #Clean p-values
 finished_summarytable <- finished_summarytable %>%
@@ -1487,7 +1484,8 @@ final_summarytable <- significant_summarytable %>%
 kable(final_summarytable, caption = "Supplementary Table X | Significant pairwise comparisons of zooplankton biomass across plastic treatments and concentrations.") %>%
   kable_styling(full_width = FALSE, position = "center")
 
-#write.csv(final_summarytable, "zooplankton_pairwise_comparisons_final_clean.csv", row.names = FALSE)
+print(final_summarytable)
+#write.csv(final_summarytable, "zooplankton_abundance_pairwise_comparisons_final_clean.csv", row.names = FALSE)
 
 
 ####################################################
@@ -1523,9 +1521,9 @@ t4.21vs181<-plot_difference(
   labs(x="log(Concentration of Plastic)", y="Abundance (Difference smooth)")+
   ggtitle("Differnce between TPU FC2.1 and TPU 181, Day 36")+coord_cartesian(ylim = c(-4.6,2.8))
 
-t4.Evs21 ### Abundance data used for MANUSCRIPT [Table S13]
-t4.Evs181 ### Abundance data used for MANUSCRIPT [Table S13]
-t4.21vs181 ### Abundance data used for MANUSCRIPT [Table S13]
+t4.Evs21 ### Abundance data used for MANUSCRIPT [Supplementary Fig. 13]
+t4.Evs181 ### Abundance data used for MANUSCRIPT [Supplementary Fig. 13]
+t4.21vs181 ### Abundance data used for MANUSCRIPT [Supplementary Fig. 13]
 
 #---------------------------
 #TIME POINT 5
@@ -1550,9 +1548,9 @@ t5.21vs181<-plot_difference(
   labs(x="log(Concentration of Plastic)", y="Abundance (Difference smooth)")+
   ggtitle("Differnce between TPU FC2.1 and TPU 181, Day 56")+coord_cartesian(ylim = c(-4.6,2.8))
 
-t5.Evs21 ### Abundance data used for MANUSCRIPT [Table S13]
-t5.Evs181 ### Abundance data used for MANUSCRIPT [Table S13]
-t5.21vs181 ### Abundance data used for MANUSCRIPT [Table S13]
+t5.Evs21 ### Abundance data used for MANUSCRIPT [Supplementary Fig. 13]
+t5.Evs181 ### Abundance data used for MANUSCRIPT [Supplementary Fig. 13]
+t5.21vs181 ### Abundance data used for MANUSCRIPT [Supplementary Fig. 13]
 
 
 #---------------------------
@@ -1578,9 +1576,9 @@ t6.21vs181<-plot_difference(
   labs(x="log(Concentration of Plastic)", y="Abundance (Difference smooth)")+
   ggtitle("Differnce between TPU FC2.1 and TPU 181, Day 97")+coord_cartesian(ylim = c(-4.6,2.8))
 
-t6.Evs21 ### Abundance data used for MANUSCRIPT [Table S13]
-t6.Evs181 ### Abundance data used for MANUSCRIPT [Table S13]
-t6.21vs181 ### Abundance data used for MANUSCRIPT [Table S13]
+t6.Evs21 ### Abundance data used for MANUSCRIPT [Supplementary Fig. 13]
+t6.Evs181 ### Abundance data used for MANUSCRIPT [Supplementary Fig. 13]
+t6.21vs181 ### Abundance data used for MANUSCRIPT [Supplementary Fig. 13]
 
 
 #STOP-------------STOP--------------STOP#
@@ -1806,7 +1804,7 @@ T1.mod.plot.custom.final <- plot_smooths(
   )
 
 #Display the updated plot
-T1.mod.plot.custom.final ### Abundance data used for MANUSCRIPT [Figure S3]
+T1.mod.plot.custom.final ### Abundance data used for MANUSCRIPT [Supplementary Fig. 3]
 
 
 
@@ -1967,7 +1965,7 @@ T4.mod.plot.custom.final <- plot_smooths(
   )
 
 #Display the updated plot
-T4.mod.plot.custom.final ### Abundance data used for MANUSCRIPT [Figure S3]
+T4.mod.plot.custom.final ### Abundance data used for MANUSCRIPT [Supplementary Fig. 3]
 
 
 
@@ -2114,7 +2112,7 @@ T5.mod.plot.custom.final <- plot_smooths(
   )
 
 #Display the updated plot
-T5.mod.plot.custom.final ### Abundance data used for MANUSCRIPT [Figure S3]
+T5.mod.plot.custom.final ### Abundance data used for MANUSCRIPT [Supplementary Fig. 3]
 
 
 
@@ -2266,14 +2264,11 @@ T6.mod.plot.custom.final <- plot_smooths(
   )
 
 #Display the updated plot
-T6.mod.plot.custom.final ### Abundance data used for MANUSCRIPT [Figure S3]
+T6.mod.plot.custom.final ### Abundance data used for MANUSCRIPT [Supplementary Fig. 3]
 
 
 
 #Combine the plots
-library(patchwork)
-
-
 #Add overall title and remove and center x axis label
 #Remove x-axis labels from the individual plots, keep the tick marks, and bold titles and axis labels
 T1.mod.plot.custom.final <- T1.mod.plot.custom.final + 
@@ -2326,17 +2321,9 @@ print(final_plot)
 
 
 
-
-
-#BIOMASS CODE
-#Library any additional packages
-library(dplyr)
-library(ggplot2)
-library(tidyverse)
-library(tidymv)
-library(patchwork)
-library(purrr)
-library(mgcv)
+######################
+#### BIOMASS CODE ####
+######################
 
 #Read in length data
 measurements0<-read.csv("MP Zoop Measurements - Zoop_Lengths.csv")
@@ -2359,7 +2346,7 @@ measurements0 <- measurements0 %>%
   mutate(tank.id = str_replace(tank.id, "A0 ", "A0"))
 
 unique(measurements0$sample.date)
-measurements0 <- measurements0[!is.na(measurements0$prop.counted)]
+#measurements0 <- measurements0[!is.na(measurements0$prop.counted)]
 
 
 measurements0<- subset(measurements0, !is.na(length..mm.))
@@ -2471,7 +2458,7 @@ hist(measurements.cyc$length..mm.)
 
 measurements97.cyc<-measurements.cyc %>% filter(days.of.exposure %in% c("97"))
 measurements97.cyc$length..mm.<-as.numeric(measurements97.cyc$length..mm.)
-hist(measurements97.cyc$length..mm.)
+hist(measurements97.cyc$length..mm.) #none
 
 measurements0.cyc<-measurements.cyc %>% filter(days.of.exposure %in% c("0"))
 measurements0.cyc$length..mm.<-as.numeric(measurements0.cyc$length..mm.)
@@ -2502,8 +2489,8 @@ hist(measurements.cop$length..mm.)
 measurements.dap <- subset(measurements.dap, !grepl("A6", tank.id) & days.of.exposure=="97" )
 
 
-#GOING TO CALCULATE THE MEDIAN FROM ACROSS ALL TANKS ACROSS ALL TIMES 
-#GOING TO USE ^ TO REDUCE VARIATION IN SYSTEMATIC ERROR
+#Calculate the median from across all tanks and times 
+#Using ^ to reduce variation in systematic error
 median.chy<-median(measurements.chy$length..mm.)
 median.dap<- median(measurements.dap$length..mm.)
 median.hydra<-median(measurements.hydra$length..mm.)
@@ -2515,7 +2502,7 @@ median.cyc<-median(measurements.cyc$length..mm.)
 median.cal<-median(measurements.cal$length..mm.)
 median.cop<- median(measurements.cop$length..mm.)
 
-#use the mean
+#Use the mean
 mean.chy<-mean(measurements.chy$length..mm.)
 mean.dap<- mean(measurements.dap$length..mm.)
 mean.hydra<-mean(measurements.hydra$length..mm.)
@@ -2528,9 +2515,9 @@ mean.cal<-mean(measurements.cal$length..mm.)
 mean.cop<- mean(measurements.cop$length..mm.)
 
 
-#going to apply median measurements to all taxa over all time periods
+#Going to apply median measurements to all taxa over all time periods
 all.time.measurements<-filtered_data
-#removing non-primary taxa (insects, hydra, unknown)
+#Removing non-primary taxa (insects, hydra, unknown)
 desired_values <- c("cladoceran","daphnia","nauplii",
                     "large copepod", "rotifer", "ostracoda")
 
@@ -2553,7 +2540,7 @@ Control_measurements4 <- subset(Control_measurements4, Count != 0)
 Control_measurements5<- subset(Control_measurements5, Count != 0)
 Control_measurements6<- subset(Control_measurements6, Count != 0) 
 
-#APPLYING MEAN MEASURMENTS TO ALL TAXA AND MERGE so we work with measurments0 and controls from now on
+#Applying mean measrements to all taxa and merge so we work with measurments0 and controls from now on
 unique(Total_measurements0$Taxa)
 
 Total_measurements0$mean.length<-Total_measurements0$Taxa
@@ -2610,17 +2597,16 @@ Control_measurements6<- Control_measurements6 %>% mutate(
 
 
 
-#MEANS HAVE BEEN APPLIED, NOW UPDATE PLASTIC TYPE AND CONCENTRATION
 
-#subsample for sample period
+#Means applied, update plastic type and concentration
+#Subsample for sample period
 Total_measurements1 <-subset(Total_measurements0, grepl("0", sample.period))
 Total_measurements4 <-subset(Total_measurements0, grepl("36", sample.period))
 Total_measurements5 <-subset(Total_measurements0, grepl("56", sample.period))
 Total_measurements6 <-subset(Total_measurements0, grepl("97", sample.period))
 
 
-#master mutate code below#
-
+#Master mutate code below
 Control_measurements1$plastic_type<-Control_measurements1$tank.id
 Control_measurements1$concentration <-Control_measurements1$tank.id
 
@@ -2694,7 +2680,7 @@ Control_measurements1<- Control_measurements1 %>% mutate(concentration = case_wh
 
 
 
-#LOG TRANS CONCENTRATION
+#LOG trans concentrations
 Control_measurements1$log.con<-Control_measurements1$tank.id
 
 Control_measurements1<- Control_measurements1 %>% mutate(log.con = case_when(
@@ -2732,7 +2718,7 @@ Control_measurements1<- Control_measurements1 %>% mutate(log.con = case_when(
 
 #LOG trans above
 Control_measurements1$log.con<-as.numeric(Control_measurements1$log.con)
-Control_measurements1$log.con<-log(Control_measurements1$log.con+.002)#THIS IS TAKING THE LN!!! IF YOU WANT LOG10 YOU NEED TO SPECIFY LOG10
+Control_measurements1$log.con<-log(Control_measurements1$log.con+.002) #This is taking the ln
 unique(Control_measurements1$log.con)
 
 Control_measurements4$plastic_type<-Control_measurements4$tank.id
@@ -2808,7 +2794,7 @@ Control_measurements4<- Control_measurements4 %>% mutate(concentration = case_wh
 
 
 
-#LOG TRANS CONCENTRATION
+#LOG trans conc
 Control_measurements4$log.con<-Control_measurements4$tank.id
 
 Control_measurements4<- Control_measurements4 %>% mutate(log.con = case_when(
@@ -2846,7 +2832,7 @@ Control_measurements4<- Control_measurements4 %>% mutate(log.con = case_when(
 
 #LOG trans above
 Control_measurements4$log.con<-as.numeric(Control_measurements4$log.con)
-Control_measurements4$log.con<-log(Control_measurements4$log.con+.002)#THIS IS TAKING THE LN!!! IF YOU WANT LOG10 YOU NEED TO SPECIFY LOG10
+Control_measurements4$log.con<-log(Control_measurements4$log.con+.002) #This is taking the ln
 unique(Control_measurements4$log.con)
 
 Control_measurements5$plastic_type<-Control_measurements5$tank.id
@@ -2922,7 +2908,7 @@ Control_measurements5<- Control_measurements5 %>% mutate(concentration = case_wh
 
 
 
-#LOG TRANS CONCENTRATION
+#LOG trans conc
 Control_measurements5$log.con<-Control_measurements5$tank.id
 
 Control_measurements5<- Control_measurements5 %>% mutate(log.con = case_when(
@@ -2960,7 +2946,7 @@ Control_measurements5<- Control_measurements5 %>% mutate(log.con = case_when(
 
 #LOG trans above
 Control_measurements5$log.con<-as.numeric(Control_measurements5$log.con)
-Control_measurements5$log.con<-log(Control_measurements5$log.con+.002)#THIS IS TAKING THE LN!!! IF YOU WANT LOG10 YOU NEED TO SPECIFY LOG10
+Control_measurements5$log.con<-log(Control_measurements5$log.con+.002) #This is taking the ln
 unique(Control_measurements5$log.con)
 
 Control_measurements6$plastic_type<-Control_measurements6$tank.id
@@ -3036,7 +3022,7 @@ Control_measurements6<- Control_measurements6 %>% mutate(concentration = case_wh
 
 
 
-#LOG TRANS CONCENTRATION
+#LOG trans conc
 Control_measurements6$log.con<-Control_measurements6$tank.id
 
 Control_measurements6<- Control_measurements6 %>% mutate(log.con = case_when(
@@ -3074,8 +3060,9 @@ Control_measurements6<- Control_measurements6 %>% mutate(log.con = case_when(
 
 #LOG trans above
 Control_measurements6$log.con<-as.numeric(Control_measurements6$log.con)
-Control_measurements6$log.con<-log(Control_measurements6$log.con+.002)#THIS IS TAKING THE LN!!! IF YOU WANT LOG10 YOU NEED TO SPECIFY LOG10
-unique(Total_measurements6$log.con)
+Control_measurements6$log.con<-log(Control_measurements6$log.con+.002) #This is taking the ln
+unique(Control_measurements6$log.con)
+#unique(Total_measurements6$log.con)
 
 Total_measurements1$plastic_type<-Total_measurements1$tank.id
 Total_measurements1$concentration <-Total_measurements1$tank.id
@@ -3150,7 +3137,7 @@ Total_measurements1<- Total_measurements1 %>% mutate(concentration = case_when(
 
 
 
-#LOG TRANS CONCENTRATION
+#LOG trans conc
 Total_measurements1$log.con<-Total_measurements1$tank.id
 
 Total_measurements1<- Total_measurements1 %>% mutate(log.con = case_when(
@@ -3188,7 +3175,7 @@ Total_measurements1<- Total_measurements1 %>% mutate(log.con = case_when(
 
 #LOG trans above
 Total_measurements1$log.con<-as.numeric(Total_measurements1$log.con)
-Total_measurements1$log.con<-log(Total_measurements1$log.con+.002)#THIS IS TAKING THE LN!!! IF YOU WANT LOG10 YOU NEED TO SPECIFY LOG10
+Total_measurements1$log.con<-log(Total_measurements1$log.con+.002) #This is taking the ln
 unique(Total_measurements1$log.con)
 
 Total_measurements4$plastic_type<-Total_measurements4$tank.id
@@ -3264,7 +3251,7 @@ Total_measurements4<- Total_measurements4 %>% mutate(concentration = case_when(
 
 
 
-#LOG TRANS CONCENTRATION
+#LOG trans conc
 Total_measurements4$log.con<-Total_measurements4$tank.id
 
 Total_measurements4<- Total_measurements4 %>% mutate(log.con = case_when(
@@ -3302,7 +3289,7 @@ Total_measurements4<- Total_measurements4 %>% mutate(log.con = case_when(
 
 #LOG tran above
 Total_measurements4$log.con<-as.numeric(Total_measurements4$log.con)
-Total_measurements4$log.con<-log(Total_measurements4$log.con+.002)#THIS IS TAKING THE LN!!! IF YOU WANT LOG10 YOU NEED TO SPECIFY LOG10
+Total_measurements4$log.con<-log(Total_measurements4$log.con+.002) #This is taking the nl
 unique(Total_measurements4$log.con)
 
 Total_measurements5$plastic_type<-Total_measurements5$tank.id
@@ -3378,7 +3365,7 @@ Total_measurements5<- Total_measurements5 %>% mutate(concentration = case_when(
 
 
 
-#LOG TRANS CONCENTRATION
+#LOG trans conc
 Total_measurements5$log.con<-Total_measurements5$tank.id
 
 Total_measurements5<- Total_measurements5 %>% mutate(log.con = case_when(
@@ -3416,7 +3403,7 @@ Total_measurements5<- Total_measurements5 %>% mutate(log.con = case_when(
 
 #LOG trans above
 Total_measurements5$log.con<-as.numeric(Total_measurements5$log.con)
-Total_measurements5$log.con<-log(Total_measurements5$log.con+.002)#THIS IS TAKING THE LN!!! IF YOU WANT LOG10 YOU NEED TO SPECIFY LOG10
+Total_measurements5$log.con<-log(Total_measurements5$log.con+.002) # This is taking the nl
 unique(Total_measurements5$log.con)
 
 
@@ -3494,7 +3481,7 @@ Total_measurements6<- Total_measurements6 %>% mutate(concentration = case_when(
 
 
 
-#LOG TRANS CONCENTRATION
+#LOG trans conc
 Total_measurements6$log.con<-Total_measurements6$tank.id
 
 Total_measurements6<- Total_measurements6 %>% mutate(log.con = case_when(
@@ -3532,7 +3519,7 @@ Total_measurements6<- Total_measurements6 %>% mutate(log.con = case_when(
 
 #LOG trans above
 Total_measurements6$log.con<-as.numeric(Total_measurements6$log.con)
-Total_measurements6$log.con<-log(Total_measurements6$log.con+.002)#THIS IS TAKING THE LN!!! IF YOU WANT LOG10 YOU NEED TO SPECIFY LOG10
+Total_measurements6$log.con<-log(Total_measurements6$log.con+.002) #This is taking the ln
 
 
 
@@ -3673,7 +3660,7 @@ Total_measurements6<- Total_measurements6 %>% mutate(concentration = case_when(
   concentration == "C9" ~ "0.385",
 ))
 
-#LOG TRANS CONCENTRATION
+#LOG trans conc
 Total_measurements6$log.con<-Total_measurements6$tank.id
 
 Total_measurements6<- Total_measurements6 %>% mutate(log.con = case_when(
@@ -3711,7 +3698,7 @@ Total_measurements6<- Total_measurements6 %>% mutate(log.con = case_when(
 
 #LOG trans above
 Total_measurements6$log.con<-as.numeric(Total_measurements6$log.con)
-Total_measurements6$log.con<-log(Total_measurements6$log.con+.002)#THIS IS TAKING THE LN!!! IF YOU WANT LOG10 YOU NEED TO SPECIFY LOG10
+Total_measurements6$log.con<-log(Total_measurements6$log.con+.002) #This is taking the ln
 unique(Total_measurements6$log.con)
 
 hist(Total_measurements6$log.con)
@@ -3817,6 +3804,7 @@ Control_measurements6 <- Control_measurements6 %>% mutate(weights = case_when(
   TRUE ~ as.numeric(weights)
 ))
 
+
 Total_measurements1$biomass<-Total_measurements1$weights*Total_measurements1$Count.per.L
 Total_measurements4$biomass<-Total_measurements4$weights*Total_measurements4$Count.per.L
 Total_measurements5$biomass<-Total_measurements5$weights*Total_measurements5$Count.per.L
@@ -3827,7 +3815,6 @@ Control_measurements5$biomass<-Control_measurements5$weights*Control_measurement
 Control_measurements6$biomass<-Control_measurements6$weights*Control_measurements6$Count.per.L
 
 #Sum the biomass
-
 Total_measurements1 <- subset(Total_measurements1, select = c(tank.id, plastic_type, concentration, log.con, biomass))
 Total_measurements4 <- subset(Total_measurements4, select = c(tank.id, plastic_type, concentration, log.con, biomass))
 Total_measurements5 <- subset(Total_measurements5, select = c(tank.id, plastic_type, concentration, log.con, biomass))
@@ -3920,9 +3907,9 @@ Total_measurements5<-rbind(Total_measurements5,Control_measurements5)
 Total_measurements6<-rbind(Total_measurements6,Control_measurements6)
 
 
-#################################################################################################
-###LOOKING AT DISTRIBUTION### GAMs are starting here #biomass is already in ug/L
-#################################################################################################
+#################################################################################
+###LOOKING AT DISTRIBUTION### GAMs are starting here #biomass is already in ug/L#
+#################################################################################
 
 hist(Total_measurements1$biomass)
 hist(Total_measurements4$biomass)
@@ -3934,7 +3921,6 @@ hist(log(Total_measurements1$biomass))
 hist(log(Total_measurements4$biomass))
 hist(log(Total_measurements5$biomass))
 hist(log(Total_measurements6$biomass))
-#Close to gaussian, check 5
 
 
 hist(log10(Total_measurements1$biomass))
@@ -3961,19 +3947,18 @@ Total_measurements6$biomass <- as.numeric(Total_measurements6$biomass)
 
 
 #START OF GAMS
-
 measurement1.gam1<-gam(biomass~plastic_type+s(log.con, by=plastic_type, k=7), data=Total_measurements1, method='REML', family= Gamma(link="log"))
 measurement1.gam2<-gam(biomass~s(log.con, by=plastic_type, k=7), data=Total_measurements1, method='REML', family= Gamma(link="log"))
 measurement1.gam3<-gam(biomass~plastic_type+s(log.con, k=7), data=Total_measurements1, method='REML', family= Gamma(link="log"))
 measurement1.gam4<-gam(biomass~ s(log.con, k=7), data=Total_measurements1, method='REML', family= Gamma(link="log"))
-AIC(measurement1.gam1,measurement1.gam2,measurement1.gam3,measurement1.gam4) ### Biomass data used for MANUSCRIPT [Table S3]
+AIC(measurement1.gam1,measurement1.gam2,measurement1.gam3,measurement1.gam4) ### Biomass data used for MANUSCRIPT [Extended Data Table 3]
 
 
 measurement4.gam1<-gam(biomass~plastic_type+s(log.con, by=plastic_type, k=7), data=Total_measurements4, method='REML', family= Gamma(link="log"))
 measurement4.gam2<-gam(biomass~s(log.con, by=plastic_type, k=7), data=Total_measurements4, method='REML', family= Gamma(link="log"))
 measurement4.gam3<-gam(biomass~plastic_type+s(log.con, k=7), data=Total_measurements4, method='REML', family= Gamma(link="log"))
 measurement4.gam4<-gam(biomass~ s(log.con, k=7), data=Total_measurements4, method='REML', family= Gamma(link="log"))
-AIC(measurement4.gam1,measurement4.gam2,measurement4.gam3,measurement4.gam4) ### Biomass data used for MANUSCRIPT [Table S3]
+AIC(measurement4.gam1,measurement4.gam2,measurement4.gam3,measurement4.gam4) ### Biomass data used for MANUSCRIPT [Extended Data Table 3]
 
 ####Check log.con###
 #Model 1 -Plastic type as a parametric term + smooth of raw concentration per plastic type
@@ -3986,7 +3971,7 @@ measurement4.gam2_raw <- gam(biomass ~ s(concentration, by = plastic_type, k = 7
                              data = Total_measurements4, method = 'REML', 
                              family = Gamma(link = "log"))
 
-#Model 3 -Plastic type as a parametric term + smooth of raw concentration (not by plastic type)
+#Model 3 - Plastic type as a parametric term + smooth of raw concentration (not by plastic type)
 measurement4.gam3_raw <- gam(biomass ~ plastic_type + s(concentration, k = 7), 
                              data = Total_measurements4, method = 'REML', 
                              family = Gamma(link = "log"))
@@ -4006,28 +3991,28 @@ measurement5.gam1<-gam(biomass~plastic_type+s(log.con, by=plastic_type, k=7), da
 measurement5.gam2<-gam(biomass~s(log.con, by=plastic_type, k=7), data=Total_measurements5, method='REML', family= Gamma(link="log"))
 measurement5.gam3<-gam(biomass~plastic_type+s(log.con, k=7), data=Total_measurements5, method='REML', family= Gamma(link="log"))
 measurement5.gam4<-gam(biomass~ s(log.con, k=7), data=Total_measurements5, method='REML', family= Gamma(link="log"))
-AIC(measurement5.gam1,measurement5.gam2,measurement5.gam3,measurement5.gam4) ### Biomass data used for MANUSCRIPT [Table S3]
+AIC(measurement5.gam1,measurement5.gam2,measurement5.gam3,measurement5.gam4) ### Biomass data used for MANUSCRIPT [Extended Data Table 3]
 
 measurement6.gam1<-gam(biomass~plastic_type+s(log.con, by=plastic_type, k=7), data=Total_measurements6, method='REML', family= Gamma(link="log"))
 measurement6.gam2<-gam(biomass~s(log.con, by=plastic_type, k=7), data=Total_measurements6, method='REML', family= Gamma(link="log"))
 measurement6.gam3<-gam(biomass~plastic_type+s(log.con, k=7), data=Total_measurements6, method='REML', family= Gamma(link="log"))
 measurement6.gam4<-gam(biomass~ s(log.con, k=7), data=Total_measurements6, method='REML', family= Gamma(link="log"))
-AIC(measurement6.gam1,measurement6.gam2,measurement6.gam3,measurement6.gam4) ### Biomass data used for MANUSCRIPT [Table S13]
+AIC(measurement6.gam1,measurement6.gam2,measurement6.gam3,measurement6.gam4) ### Biomass data used for MANUSCRIPT [Extended Data Table 3]
 
-measurement1.gam.check<-gam.check(measurement1.gam4) ### Biomass data used for MANUSCRIPT [Table S4]
-measurement4.gam.check<-gam.check(measurement4.gam1) ### Biomass data used for MANUSCRIPT [Table S4]
-measurement5.gam.check<-gam.check(measurement5.gam1) ### Biomass data used for MANUSCRIPT [Table S4]
-measurement6.gam.check<-gam.check(measurement6.gam1) ### Biomass data used for MANUSCRIPT [Table S4]
+measurement1.gam.check<-gam.check(measurement1.gam4) 
+measurement4.gam.check<-gam.check(measurement4.gam1) 
+measurement5.gam.check<-gam.check(measurement5.gam1) 
+measurement6.gam.check<-gam.check(measurement6.gam1) 
 
 anova.gam(measurement1.gam4)
 anova.gam(measurement4.gam1)
 anova.gam(measurement5.gam1)
 anova.gam(measurement6.gam1)
 
-plot(measurement1.gam4, all.terms = TRUE, page=1)
-plot(measurement4.gam1, all.terms = TRUE, page=1)
-plot(measurement5.gam1, all.terms = TRUE, page=1)
-plot(measurement6.gam1, all.terms = TRUE, page=1)
+plot(measurement1.gam4, all.terms = TRUE, page=1) ### Biomass data used for MANUSCRIPT [Extended Data Table 4]
+plot(measurement4.gam1, all.terms = TRUE, page=1) ### Biomass data used for MANUSCRIPT [Extended Data Table 4]
+plot(measurement5.gam1, all.terms = TRUE, page=1) ### Biomass data used for MANUSCRIPT [Extended Data Table 4]
+plot(measurement6.gam1, all.terms = TRUE, page=1) ### Biomass data used for MANUSCRIPT [Extended Data Table 4]
 
 
 #Setting concentrations to look at every concentration
@@ -4051,10 +4036,106 @@ table4.biomass<-kable(pw4c.biomass)
 table5.biomass<-kable(pw5c.biomass)
 table6.biomass<-kable(pw6c.biomass)
 
-view(pw1c.biomass)
-view(pw4c.biomass)
-view(pw5c.biomass)
-view(pw6c.biomass)
+#view(pw1c.biomass)
+#view(pw4c.biomass)
+#view(pw5c.biomass)
+#view(pw6c.biomass)
+
+#######################################################
+###############Adding Summary Table Creation###########
+#######################################################
+
+#Define log concentrations and matching real concentrations
+log_con_levels_sumtable <- c(-6.2146081, -5.1159958, -4.6051702, -4.1997051, -3.6888795, 
+                             -3.1465552, -2.6036902, -2.0557250, -1.5050779, -0.9493306)
+
+plastic_conc_sumtable <- c(0.000, 0.004, 0.008, 0.013, 0.023, 0.041, 0.072, 0.126, 0.220, 0.385)
+
+#Create a lookup table
+log_conc_map <- data.frame(
+  log_con = log_con_levels_sumtable,
+  plastic_concentration = plastic_conc_sumtable
+)
+
+#Summarize each pairwise comparison object
+summary_pw1 <- as.data.frame(summary(pw1c.biomass))  #Day 0 (before plastics)
+summary_pw4 <- as.data.frame(summary(pw4c.biomass))  #Day 36
+summary_pw5 <- as.data.frame(summary(pw5c.biomass))  #Day 56
+summary_pw6 <- as.data.frame(summary(pw6c.biomass))  #Day 97
+
+#Add sampling day to each summary
+summary_pw1$sampling_day <- 0
+summary_pw4$sampling_day <- 36
+summary_pw5$sampling_day <- 56
+summary_pw6$sampling_day <- 97
+
+#Combine all summaries into one dataframe
+full_summarytable <- bind_rows(summary_pw1, summary_pw4, summary_pw5, summary_pw6)
+
+#Merge with real plastic concentration values
+full_summarytable <- full_summarytable %>%
+  left_join(log_conc_map, by = c("log.con" = "log_con"))
+
+colnames(full_summarytable)
+
+#Create the final clean summary table
+finished_summarytable <- full_summarytable %>%
+  mutate(
+    Comparison = contrast,
+    Estimate_SE = paste0(round(estimate, 3), " ± ", round(SE, 3)),
+    p_value = round(p.value, 4),
+    Significant = ifelse(p.value < 0.05, "Yes", "No")
+  ) %>%
+  dplyr::select(   #Force dplyr::select
+    sampling_day,
+    plastic_concentration,
+    Comparison,
+    Estimate_SE,
+    t.ratio,
+    p_value,
+    Significant
+  ) %>%
+  arrange(sampling_day, plastic_concentration)
+
+#View the final table
+kable(finished_summarytable)
+#view(finished_summarytable)
+
+
+#Clean p-values
+finished_summarytable <- finished_summarytable %>%
+  mutate(
+    p_value_clean = ifelse(p_value < 0.0001, "<0.0001", sprintf("%.4f", p_value)),
+    Estimate_SE_clean = gsub("Â", "", Estimate_SE) #Remove character
+  )
+
+#Filter to show only significant comparisons
+significant_summarytable <- finished_summarytable %>%
+  filter(Significant == "Yes")
+
+#Select columns and rename
+final_summarytable <- significant_summarytable %>%
+  dplyr::select(          #Force dplyr::select
+    `Sampling Day` = sampling_day,
+    `Plastic Concentration (g/L)` = plastic_concentration,
+    `Comparison` = Comparison,
+    `Estimate ± SE` = Estimate_SE_clean,
+    `t-ratio` = t.ratio,
+    `p-value` = p_value_clean,
+    `Significant Difference` = Significant
+  ) %>%
+  arrange(`Sampling Day`, `Plastic Concentration (g/L)`)
+
+#Print the final polished table
+kable(final_summarytable, caption = "Supplementary Table X | Significant pairwise comparisons of zooplankton biomass across plastic treatments and concentrations.") %>%
+  kable_styling(full_width = FALSE, position = "center")
+
+print(final_summarytable) #MANUSCRIPT [Extended Table 5]
+#write.csv(final_summarytable, "zooplankton_biomass_pairwise_comparisons_final_clean.csv", row.names = FALSE)
+
+
+#############################################
+#############################################
 
 #Get pairwise comparisons table for tiempoint1
 pw1c.biomass <- as.data.frame(pw1c.biomass)
@@ -4120,9 +4201,9 @@ biomass.t4.21vs181<-plot_difference(
   labs(x="log(Concentration of Plastic)", y="Biomass (Difference smooth)")+
   ggtitle("Differnce between TPU FC2.1 and TPU 181, Day 36")+coord_cartesian(ylim = c(-4.6,2.8))
 
-biomass.t4.Evs21 ### Biomass data used for MANUSCRIPT [FIGURE S12]
-biomass.t4.Evs181 ### Biomass data used for MANUSCRIPT [FIGURE S12]
-biomass.t4.21vs181 ### Biomass data used for MANUSCRIPT [FIGURE S12]
+biomass.t4.Evs21 ### Biomass data used for MANUSCRIPT [Supplementary Fig. 12]
+biomass.t4.Evs181 ### Biomass data used for MANUSCRIPT [Supplementary Fig. 12]
+biomass.t4.21vs181 ### Biomass data used for MANUSCRIPT [Supplementary Fig. 12]
 
 #---------------------------
 #TIME POINT 5
@@ -4147,9 +4228,9 @@ biomass.t5.21vs181<-plot_difference(
   labs(x="log(Concentration of Plastic)", y="Biomass (Difference smooth)")+
   ggtitle("Differnce between TPU FC2.1 and TPU 181, Day 56")+coord_cartesian(ylim = c(-4.6,2.8))
 
-biomass.t5.Evs21 ### Biomass data used for MANUSCRIPT [FIGURE S12]
-biomass.t5.Evs181 ### Biomass data used for MANUSCRIPT [FIGURE S12]
-biomass.t5.21vs181 ### Biomass data used for MANUSCRIPT [FIGURE S12]
+biomass.t5.Evs21 ### Biomass data used for MANUSCRIPT [Supplementary Fig. 12]
+biomass.t5.Evs181 ### Biomass data used for MANUSCRIPT [Supplementary Fig. 12]
+biomass.t5.21vs181 ### Biomass data used for MANUSCRIPT [Supplementary Fig. 12]
 #---------------------------
 #TIME POINT 6
 biomass.t6.Evs21<-plot_difference(
@@ -4173,9 +4254,9 @@ biomass.t6.21vs181<-plot_difference(
   labs(x="log(Concentration of Plastic)", y="Biomass (Difference smooth)")+
   ggtitle("Differnce between TPU FC2.1 and TPU 181, Day 97")+coord_cartesian(ylim = c(-4.6,2.8))
 
-biomass.t6.Evs21 ### Biomass data used for MANUSCRIPT [FIGURE S12]
-biomass.t6.Evs181 ### Biomass data used for MANUSCRIPT [FIGURE S12]
-biomass.t6.21vs181 ### Biomass data used for MANUSCRIPT [FIGURE S12]
+biomass.t6.Evs21 ### Biomass data used for MANUSCRIPT [Supplementary Fig. 12]
+biomass.t6.Evs181 ### Biomass data used for MANUSCRIPT [Supplementary Fig. 12]
+biomass.t6.21vs181 ### Biomass data used for MANUSCRIPT [Supplementary Fig. 12]
 
 
 
@@ -4363,7 +4444,7 @@ plotplot1_T1_mod.custom.final <- plot_smooths(
   )
 
 #Display the plot
-plotplot1_T1_mod.custom.final ### Biomass data used for MANUSCRIPT [FIGURE 2]
+plotplot1_T1_mod.custom.final ### Biomass data used for MANUSCRIPT [Fig. 2]
 
 
 
@@ -4482,7 +4563,7 @@ plotplot2_T2_mod.custom.final <- plot_smooths(
   )
 
 # Display the plot
-plotplot2_T2_mod.custom.final ### Biomass data used for MANUSCRIPT [FIGURE 2]
+plotplot2_T2_mod.custom.final ### Biomass data used for MANUSCRIPT [Fig. 2]
 
 
 
@@ -4601,7 +4682,7 @@ plotplot3_T3_mod.custom.final <- plot_smooths(
   )
 
 #Display the plot
-plotplot3_T3_mod.custom.final ### Biomass data used for MANUSCRIPT [FIGURE 2]
+plotplot3_T3_mod.custom.final ### Biomass data used for MANUSCRIPT [Fig. 2]
 
 
 
@@ -4724,7 +4805,7 @@ plotplot4_T4_mod.custom.final <- plot_smooths(
   )
 
 #Display the plot
-plotplot4_T4_mod.custom.final ### Biomass data used for MANUSCRIPT [FIGURE 2]
+plotplot4_T4_mod.custom.final ### Biomass data used for MANUSCRIPT [Fig. 2]
 
 
 
@@ -4779,7 +4860,7 @@ final_plot_biomass <- (combined_plot_biomass / x_label_plot_biomass) +
   theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"))  
 
 #Display the final combined plot
-print(final_plot_biomass) ### Biomass data used for MANUSCRIPT [FIGURE 2]
+print(final_plot_biomass) ### Biomass data used for MANUSCRIPT [Fig. 2]
 
 
 

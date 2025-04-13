@@ -1,3 +1,6 @@
+#This R script runs the chla analysis and figure creation
+
+
 rm(list = ls())
 
 setwd("C:/Users/DELL/Documents/R/projects/MP1_CHLA_NPP_ER")
@@ -21,6 +24,7 @@ install.packages("akima")
 install.packages("car")
 install.packages("cowplot")
 install.packages("tidymv")
+
 library(reshape2)
 library(emmeans)
 library(dplyr)
@@ -385,16 +389,16 @@ Csummary_data_contour$number_designation <- as.numeric(Csummary_data_contour$num
 
 #Get date without year
 ###For A###
-Asummary_data_contour <- select(Asummary_data_contour, -date_without_year)
-Asummary_data_contour <- select(Asummary_data_contour, -date)
+Asummary_data_contour <- dplyr::select(Asummary_data_contour, -date_without_year)
+Asummary_data_contour <- dplyr::select(Asummary_data_contour, -date)
 
 ###For B###
-Bsummary_data_contour <- select(Bsummary_data_contour, -date_without_year)
-Bsummary_data_contour <- select(Bsummary_data_contour, -date)
+Bsummary_data_contour <- dplyr::select(Bsummary_data_contour, -date_without_year)
+Bsummary_data_contour <- dplyr::select(Bsummary_data_contour, -date)
 
 ###For C###
-Csummary_data_contour <- select(Csummary_data_contour, -date_without_year)
-Csummary_data_contour <- select(Csummary_data_contour, -date)
+Csummary_data_contour <- dplyr::select(Csummary_data_contour, -date_without_year)
+Csummary_data_contour <- dplyr::select(Csummary_data_contour, -date)
 
 ###FOr A###
 #Generate all combinations of date_num and number_designation
@@ -1177,8 +1181,8 @@ combined_heatmap_plot <- heatmap_contour_plot_A_log_y +
   heatmap_contour_plot_C_log_y +
   plot_layout(ncol = 3)  
 
-#Display the combined plot ### [MANUSCRIPT FIGURE 1] ###
-print(combined_heatmap_plot)
+#Display the combined plot 
+print(combined_heatmap_plot) ### MANUSCRIPT [Fig. 1]
 
 
 
@@ -1467,7 +1471,7 @@ aic_comparison_gamma <- data.frame(
 )
 
 #Print AIC comparison
-print(aic_comparison_gamma) ####USed for Chla MANUSCRIPT [Table S1]###
+print(aic_comparison_gamma) ####USed for Chla MANUSCRIPT [Extended Data Table 1]###
 
 #ANOVA between models
 anova_results <- anova(models[[1]], models[[2]], models[[3]], models[[4]])
@@ -1476,9 +1480,19 @@ print(anova_results)
 #Plot best model
 best_model <- models[[which.min(aic_comparison_gamma$AIC)]]
 plot(best_model, pages = 1)
-summary(best_model) ####Used for Chla MANUSCRIPT [Table S2]###
+summary(best_model) ####Used for Chla MANUSCRIPT [Extended Data Table 2]###
+#anova.gam(best_model)
 
 #Add pairwise comparisons for each letter group
+#Get estimated marginal means (EMMs) for plastic type
+plastic_emm <- emmeans(best_model, ~ letter_group)
+
+#Pairwise comparisons with Tukey correction
+pairwise_results <- contrast(plastic_emm, method = "pairwise", adjust = "tukey")
+
+#View the pairwise comparisons
+summary(pairwise_results)
+###############################################
 
 #Fitted vs. residuals
 plot(fitted(model3_gamma), residuals(model3_gamma), 
@@ -1644,7 +1658,7 @@ chla_diff_BC_num <- plot_difference(
   ggtitle("Difference between TPU 181 and TPU FC2.1") +
   theme_minimal()
 
-####Used for MANUSCRIPT [FIGURE S9]###
+####Used for MANUSCRIPT [Supplementary Fig. 9]###
 print(chla_diff_AB_date)
 print(chla_diff_AC_date)
 print(chla_diff_BC_date)
