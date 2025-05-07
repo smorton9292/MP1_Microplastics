@@ -113,8 +113,10 @@ data <- data %>%
     tank.id == "C4" ~ "30",
   ))
 
+str(data)
+
 #Getting rid of weird columns (cleaning)
-data<-subset(data, select = -c(photo.analyzed, X,X.1,X.2,X.3))
+data<-subset(data, select = -c(X,X.1,X.2,X.3))
 
 #Copy column taxa code and counts + update counts based on the prop.counted
 data$new.taxa = data$taxa.code
@@ -234,6 +236,8 @@ print(unique(data$new.taxa))
 #Now get the unique dates and sort them
 unique_dates <- sort(unique(data$sample.date))
 print(unique_dates)
+
+data$sample.date <- as.Date(data$sample.date, format = "%m/%d/%Y")
 
 #Add sample.period based on sample.date
 data <- data %>%
@@ -1343,15 +1347,15 @@ print(gam.t4)
 print(gam.t5)
 print(gam.t6)
 
-summary(gam.t1) ### Abundance data used for MANUSCRIPT [Extended Data Table 4]
-summary(gam.t4) ### Abundance data used for MANUSCRIPT [Extended Data Table 4]
-summary(gam.t5) ### Abundance data used for MANUSCRIPT [Extended Data Table 4]
-summary(gam.t6) ### Abundance data used for MANUSCRIPT [Extended Data Table 4]
+summary(gam.t1) 
+summary(gam.t4) 
+summary(gam.t5) 
+summary(gam.t6) 
 
-anova.gam(gam.t1)
-anova.gam(gam.t4)
-anova.gam(gam.t5)
-anova.gam(gam.t6)
+anova.gam(gam.t1) ### Abundance data used for MANUSCRIPT [Extended Data Table 4]
+anova.gam(gam.t4) ### Abundance data used for MANUSCRIPT [Extended Data Table 4]
+anova.gam(gam.t5) ### Abundance data used for MANUSCRIPT [Extended Data Table 4]
+anova.gam(gam.t6) ### Abundance data used for MANUSCRIPT [Extended Data Table 4]
 
 plot(gam.t1, all.terms = TRUE, page=1)
 plot(gam.t4, all.terms = TRUE, page=1)
@@ -2328,8 +2332,9 @@ print(final_plot)
 #Read in length data
 measurements0<-read.csv("MP Zoop Measurements - Zoop_Lengths.csv")
 
+measurements0$sample.date <- as.Date(measurements0$sample.date, format = "%m/%d/%Y")
 
-measurements0 <- subset(measurements0, select = -c(who.took.measurment, hours, who.counted, number.measured, count.date, measured, sample.period))
+measurements0 <- subset(measurements0, select = -c(hours, who.counted, number.measured, count.date, measured, sample.period))
 measurements0$days.of.exposure<-measurements0$sample.date
 measurements0 <- measurements0 %>%
   mutate(days.of.exposure = case_when(
@@ -2341,6 +2346,8 @@ measurements0 <- measurements0 %>%
     sample.date == as.Date("2023-06-12") ~ "97",
     TRUE ~ NA_character_  #Assign NA to any date that doesn't match
   ))
+
+str(measurements0)
 
 measurements0 <- measurements0 %>%
   mutate(tank.id = str_replace(tank.id, "A0 ", "A0"))
@@ -4004,15 +4011,15 @@ measurement4.gam.check<-gam.check(measurement4.gam1)
 measurement5.gam.check<-gam.check(measurement5.gam1) 
 measurement6.gam.check<-gam.check(measurement6.gam1) 
 
-anova.gam(measurement1.gam4)
-anova.gam(measurement4.gam1)
-anova.gam(measurement5.gam1)
-anova.gam(measurement6.gam1)
+anova.gam(measurement1.gam4) ### Biomass data used for MANUSCRIPT [Extended Data Table 4]
+anova.gam(measurement4.gam1) ### Biomass data used for MANUSCRIPT [Extended Data Table 4]
+anova.gam(measurement5.gam1) ### Biomass data used for MANUSCRIPT [Extended Data Table 4]
+anova.gam(measurement6.gam1) ### Biomass data used for MANUSCRIPT [Extended Data Table 4]
 
-plot(measurement1.gam4, all.terms = TRUE, page=1) ### Biomass data used for MANUSCRIPT [Extended Data Table 4]
-plot(measurement4.gam1, all.terms = TRUE, page=1) ### Biomass data used for MANUSCRIPT [Extended Data Table 4]
-plot(measurement5.gam1, all.terms = TRUE, page=1) ### Biomass data used for MANUSCRIPT [Extended Data Table 4]
-plot(measurement6.gam1, all.terms = TRUE, page=1) ### Biomass data used for MANUSCRIPT [Extended Data Table 4]
+plot(measurement1.gam4, all.terms = TRUE, page=1) 
+plot(measurement4.gam1, all.terms = TRUE, page=1) 
+plot(measurement5.gam1, all.terms = TRUE, page=1) 
+plot(measurement6.gam1, all.terms = TRUE, page=1) 
 
 
 #Setting concentrations to look at every concentration
